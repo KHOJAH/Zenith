@@ -1,44 +1,40 @@
 import * as SQLite from 'expo-sqlite';
-import { Transaction, BudgetCategory } from './schema';
+import { Transaction, CategoryItem, BudgetCategory } from './schema';
 
-export const DEFAULT_BUDGETS: BudgetCategory[] = [
+export const DEFAULT_CATEGORIES: CategoryItem[] = [
   {
     category: 'Housing & Utilities',
-    monthly_limit: 1500,
     icon: 'home',
     subtitle: 'Rent, water, electricity, internet',
   },
   {
     category: 'Food & Dining',
-    monthly_limit: 700,
     icon: 'coffee',
     subtitle: 'Groceries, cafes, restaurants',
   },
   {
     category: 'Shopping & Tech',
-    monthly_limit: 400,
     icon: 'shopping-bag',
     subtitle: 'Hardware, apparel, supplies',
   },
   {
     category: 'Entertainment',
-    monthly_limit: 250,
     icon: 'film',
     subtitle: 'Streaming, cinema, events',
   },
   {
     category: 'Transport',
-    monthly_limit: 200,
     icon: 'navigation',
     subtitle: 'Fuel, transit pass, rideshare',
   },
   {
     category: 'Health & Wellness',
-    monthly_limit: 300,
     icon: 'activity',
     subtitle: 'Gym, medical, pharmacy',
   },
 ];
+
+export const DEFAULT_BUDGETS = DEFAULT_CATEGORIES;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -62,26 +58,40 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           created_at TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS budgets (
+        CREATE TABLE IF NOT EXISTS categories (
           category TEXT PRIMARY KEY NOT NULL,
-          monthly_limit REAL NOT NULL,
           icon TEXT NOT NULL,
-          subtitle TEXT NOT NULL
+          subtitle TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY NOT NULL,
+          value TEXT NOT NULL
         );
       `);
 
       try {
         await db.execAsync("ALTER TABLE transactions ADD COLUMN currency TEXT DEFAULT 'USD';");
       } catch {
-        // Column already exists in SQLite table
+        // Column already exists
       }
 
-      const existingBudgets = await db.getAllAsync<{ category: string }>('SELECT category FROM budgets LIMIT 1');
-      if (existingBudgets.length === 0) {
-        for (const b of DEFAULT_BUDGETS) {
+      // Check if categories need migration from old budgets table or initialization
+      try {
+        await db.execAsync(`
+          INSERT OR IGNORE INTO categories (category, icon, subtitle)
+          SELECT category, icon, subtitle FROM budgets;
+        `);
+      } catch {
+        // Old budgets table might not exist
+      }
+
+      const existingCats = await db.getAllAsync<{ category: string }>('SELECT category FROM categories LIMIT 1');
+      if (existingCats.length === 0) {
+        for (const c of DEFAULT_CATEGORIES) {
           await db.runAsync(
-            'INSERT INTO budgets (category, monthly_limit, icon, subtitle) VALUES (?, ?, ?, ?)',
-            [b.category, b.monthly_limit, b.icon, b.subtitle]
+            'INSERT OR IGNORE INTO categories (category, icon, subtitle) VALUES (?, ?, ?)',
+            [c.category, c.icon, c.subtitle || '']
           );
         }
       }
@@ -142,20 +152,40 @@ export async function clearAllTransactions(): Promise<void> {
   await db.runAsync('DELETE FROM transactions');
 }
 
-export async function getBudgets(): Promise<BudgetCategory[]> {
+export async function getCategories(): Promise<CategoryItem[]> {
   const db = await getDatabase();
-  return await db.getAllAsync<BudgetCategory>('SELECT * FROM budgets ORDER BY monthly_limit DESC');
+  return await db.getAllAsync<CategoryItem>('SELECT * FROM categories ORDER BY category ASC');
 }
 
-export async function addBudgetCategory(category: BudgetCategory): Promise<void> {
+export async function addCategory(category: CategoryItem): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT OR REPLACE INTO budgets (category, monthly_limit, icon, subtitle) VALUES (?, ?, ?, ?)`,
-    [category.category, category.monthly_limit, category.icon, category.subtitle]
+    `INSERT OR REPLACE INTO categories (category, icon, subtitle) VALUES (?, ?, ?)`,
+    [category.category, category.icon, category.subtitle || '']
   );
 }
 
-export async function updateBudgetLimit(category: string, newLimit: number): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync('UPDATE budgets SET monthly_limit = ? WHERE category = ?', [newLimit, category]);
+// Backward-compatible aliases
+export const getBudgets = getCategories;
+export const addBudgetCategory = (cat: any) => addCategory({ category: cat.category, icon: cat.icon, subtitle: cat.subtitle });
+
+// Settings key-value store for persisting settings (e.g. active currency)
+export async function getSetting(key: string, defaultValue: string): Promise<string> {
+  try {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', [key]);
+    return row ? row.value : defaultValue;
+  } catch (error) {
+    console.error(`Error reading setting ${key}:`, error);
+    return defaultValue;
+  }
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  try {
+    const db = await getDatabase();
+    await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', [key, value]);
+  } catch (error) {
+    console.error(`Error saving setting ${key}:`, error);
+  }
 }

@@ -1,4 +1,4 @@
-import { Transaction, BudgetCategory, CategorySummary } from '@/db/schema';
+import { Transaction, CategoryItem, CategorySummary } from '@/db/schema';
 import { convertCurrency } from './currencies';
 
 export interface MonthAnalytics {
@@ -9,9 +9,6 @@ export interface MonthAnalytics {
   daysPassed: number;
   daysRemaining: number;
   totalDays: number;
-  budgetCap: number;
-  budgetUsedPercent: number;
-  budgetRemaining: number;
   weeklyBurn: {
     week1: number;
     week2: number;
@@ -23,7 +20,7 @@ export interface MonthAnalytics {
 
 export function calculateMonthAnalytics(
   transactions: Transaction[],
-  budgets: BudgetCategory[],
+  categories: CategoryItem[],
   targetCurrency: string = 'USD',
   startDateStr?: string,
   endDateStr?: string
@@ -107,18 +104,7 @@ export function calculateMonthAnalytics(
   // Daily velocity
   const dailyVelocity = Math.round((totalExpenses / Math.max(1, daysPassed)) * 100) / 100;
 
-  // Converted total budget cap from all configured budgets (anchored in USD)
-  const budgetCap = Math.round(
-    budgets.reduce(
-      (acc, b) => acc + convertCurrency(b.monthly_limit, 'USD', targetCurrency),
-      0
-    ) * 100
-  ) / 100 || (convertCurrency(4000, 'USD', targetCurrency));
-
-  const budgetUsedPercent = budgetCap > 0 ? Math.min(100, (totalExpenses / budgetCap) * 100) : 0;
-  const budgetRemaining = Math.max(0, Math.round((budgetCap - totalExpenses) * 100) / 100);
-
-  // Category summaries
+  // Category color mapping
   const categoryColors: Record<string, string> = {
     'Housing & Utilities': '#000000',
     'Food & Dining': '#10B981',
@@ -129,19 +115,21 @@ export function calculateMonthAnalytics(
     'Other': '#64748B',
   };
 
-  const categorySummaries: CategorySummary[] = budgets.map((b) => {
-    const spent = Math.round((categorySpentMap[b.category] || 0) * 100) / 100;
-    const limitInCurrency = Math.round(convertCurrency(b.monthly_limit, 'USD', targetCurrency) * 100) / 100;
-    const percentage = limitInCurrency > 0 ? Math.min(100, (spent / limitInCurrency) * 100) : 0;
+  // Build category summaries: calculate each category's share of total expenses
+  const categorySummaries: CategorySummary[] = categories.map((c) => {
+    const spent = Math.round((categorySpentMap[c.category] || 0) * 100) / 100;
+    const percentage = totalExpenses > 0 ? Math.round((spent / totalExpenses) * 100) : 0;
     return {
-      category: b.category,
+      category: c.category,
       spent,
-      limit: limitInCurrency,
       percentage,
-      icon: b.icon,
-      color: categoryColors[b.category] || '#64748B',
+      icon: c.icon,
+      color: categoryColors[c.category] || '#64748B',
     };
   });
+
+  // Sort categories by highest spend first
+  categorySummaries.sort((a, b) => b.spent - a.spent);
 
   return {
     totalExpenses,
@@ -151,9 +139,6 @@ export function calculateMonthAnalytics(
     daysPassed,
     daysRemaining,
     totalDays,
-    budgetCap,
-    budgetUsedPercent,
-    budgetRemaining,
     weeklyBurn: {
       week1: Math.round(w1 * 100) / 100,
       week2: Math.round(w2 * 100) / 100,

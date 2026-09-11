@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Transaction, BudgetCategory, DateInterval } from '@/db/schema';
+import { Transaction, CategoryItem, DateInterval } from '@/db/schema';
 import * as db from '@/db/database';
 import { calculateMonthAnalytics, MonthAnalytics } from '@/utils/velocity';
 
 interface TransactionContextType {
   transactions: Transaction[];
-  budgets: BudgetCategory[];
+  categories: CategoryItem[];
+  budgets: CategoryItem[]; // Kept for backwards compatibility
   analytics: MonthAnalytics;
   isLoading: boolean;
   currency: string;
@@ -16,7 +17,7 @@ interface TransactionContextType {
   toggleBalanceVisibility: () => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at'>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
-  addCustomCategory: (categoryName: string, monthlyLimit?: number, icon?: string) => Promise<void>;
+  addCustomCategory: (categoryName: string, icon?: string) => Promise<void>;
   clearAll: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -25,9 +26,9 @@ const TransactionContext = createContext<TransactionContextType | undefined>(und
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [currency, setCurrency] = useState<string>('USD');
+  const [currency, setCurrencyState] = useState<string>('USD');
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
 
   // Initialize date interval to current month
@@ -39,15 +40,31 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString(),
   });
 
+  // Load persisted currency on mount
+  useEffect(() => {
+    db.getSetting('currency', 'USD').then((saved) => {
+      if (saved) {
+        setCurrencyState(saved);
+      }
+    });
+  }, []);
+
+  const setCurrency = useCallback((c: string) => {
+    setCurrencyState(c);
+    db.setSetting('currency', c).catch((err) => {
+      console.error('Failed to persist currency:', err);
+    });
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [txList, budgetList] = await Promise.all([
+      const [txList, catList] = await Promise.all([
         db.getTransactions(),
-        db.getBudgets(),
+        db.getCategories(),
       ]);
       setTransactions(txList);
-      setBudgets(budgetList);
+      setCategories(catList);
     } catch (error) {
       console.error('Failed to load transaction data:', error);
     } finally {
@@ -73,12 +90,11 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     await refresh();
   };
 
-  const addCustomCategory = async (categoryName: string, monthlyLimit = 300, icon = 'tag') => {
+  const addCustomCategory = async (categoryName: string, icon = 'tag') => {
     const trimmed = categoryName.trim();
     if (!trimmed) return;
-    await db.addBudgetCategory({
+    await db.addCategory({
       category: trimmed,
-      monthly_limit: monthlyLimit,
       icon,
       subtitle: 'Custom category',
     });
@@ -96,7 +112,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   const analytics = calculateMonthAnalytics(
     transactions,
-    budgets,
+    categories,
     currency,
     dateInterval.startDate,
     dateInterval.endDate
@@ -106,7 +122,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     <TransactionContext.Provider
       value={{
         transactions,
-        budgets,
+        categories,
+        budgets: categories, // Alias
         analytics,
         isLoading,
         currency,

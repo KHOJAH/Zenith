@@ -23,6 +23,7 @@ import { Header } from '@/components/Header';
 import { CategoryGrid } from '@/components/CategoryGrid';
 import { CurrencyModal } from '@/components/CurrencyModal';
 import { AddCategoryModal } from '@/components/AddCategoryModal';
+import { CustomDatePickerModal } from '@/components/CustomDatePickerModal';
 import { Button } from '@/components/Button';
 
 const PAYMENT_METHODS = ['Card', 'Cash'] as const;
@@ -32,7 +33,7 @@ export default function QuickAddScreen() {
   const { colors, isDark } = useTheme();
   const {
     addTransaction,
-    budgets,
+    categories,
     addCustomCategory,
     currency,
     setCurrency,
@@ -43,15 +44,36 @@ export default function QuickAddScreen() {
   const [category, setCategory] = useState<string>('Food & Dining');
   const [note, setNote] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('Card');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [addCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const amountInputRef = useRef<TextInput>(null);
 
   const currentCurrencyInfo = getCurrencyInfo(currency);
   const currencySymbol = currentCurrencyInfo.symbol;
+
+  const isToday = (d: Date) => {
+    const now = new Date();
+    return (
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    );
+  };
+
+  const isYesterday = (d: Date) => {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    return (
+      d.getDate() === y.getDate() &&
+      d.getMonth() === y.getMonth() &&
+      d.getFullYear() === y.getFullYear()
+    );
+  };
 
   const handleAmountChange = (text: string) => {
     // Sanitize input: allow only digits and single decimal point with up to 2 decimal places
@@ -84,7 +106,7 @@ export default function QuickAddScreen() {
         category: flowType === 'income' ? 'Income' : category,
         merchant: flowType === 'income' ? 'Income' : category,
         note: note.trim(),
-        date: new Date().toISOString(),
+        date: selectedDate.toISOString(),
         payment_method: paymentMethod,
       });
 
@@ -106,7 +128,7 @@ export default function QuickAddScreen() {
     }
   };
 
-  const categoriesList = budgets.map((b) => ({
+  const categoriesList = categories.map((b) => ({
     category: b.category,
     icon: b.icon,
   }));
@@ -249,6 +271,128 @@ export default function QuickAddScreen() {
             </View>
           )}
 
+          {/* Date Selector */}
+          <View style={styles.sectionBlock}>
+            <ThemedText
+              variant="labelSm"
+              color={colors.textSecondary}
+              style={styles.sectionHeader}
+            >
+              DATE
+            </ThemedText>
+
+            <View style={styles.dateSelectorRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Today"
+                onPress={() => {
+                  try { Haptics.selectionAsync(); } catch {}
+                  setSelectedDate(new Date());
+                }}
+                style={[
+                  styles.datePill,
+                  isToday(selectedDate)
+                    ? { backgroundColor: isDark ? colors.secondary : colors.primary }
+                    : { backgroundColor: colors.surfaceContainerLow },
+                ]}
+              >
+                <ThemedText
+                  variant="labelMd"
+                  color={
+                    isToday(selectedDate)
+                      ? isDark
+                        ? '#052E16'
+                        : colors.onPrimary
+                      : colors.textSecondary
+                  }
+                  style={{ fontWeight: isToday(selectedDate) ? '700' : '500' }}
+                >
+                  Today
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Yesterday"
+                onPress={() => {
+                  try { Haptics.selectionAsync(); } catch {}
+                  const y = new Date();
+                  y.setDate(y.getDate() - 1);
+                  setSelectedDate(y);
+                }}
+                style={[
+                  styles.datePill,
+                  isYesterday(selectedDate)
+                    ? { backgroundColor: isDark ? colors.secondary : colors.primary }
+                    : { backgroundColor: colors.surfaceContainerLow },
+                ]}
+              >
+                <ThemedText
+                  variant="labelMd"
+                  color={
+                    isYesterday(selectedDate)
+                      ? isDark
+                        ? '#052E16'
+                        : colors.onPrimary
+                      : colors.textSecondary
+                  }
+                  style={{ fontWeight: isYesterday(selectedDate) ? '700' : '500' }}
+                >
+                  Yesterday
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Custom Date"
+                onPress={() => {
+                  try { Haptics.selectionAsync(); } catch {}
+                  setDatePickerVisible(true);
+                }}
+                style={[
+                  styles.datePill,
+                  styles.customDatePill,
+                  !isToday(selectedDate) && !isYesterday(selectedDate)
+                    ? { backgroundColor: isDark ? colors.secondary : colors.primary }
+                    : { backgroundColor: colors.surfaceContainerLow },
+                ]}
+              >
+                <Feather
+                  name="calendar"
+                  size={14}
+                  color={
+                    !isToday(selectedDate) && !isYesterday(selectedDate)
+                      ? isDark
+                        ? '#052E16'
+                        : colors.onPrimary
+                      : colors.textSecondary
+                  }
+                />
+                <ThemedText
+                  variant="labelMd"
+                  color={
+                    !isToday(selectedDate) && !isYesterday(selectedDate)
+                      ? isDark
+                        ? '#052E16'
+                        : colors.onPrimary
+                      : colors.textSecondary
+                  }
+                  style={{
+                    fontWeight:
+                      !isToday(selectedDate) && !isYesterday(selectedDate) ? '700' : '500',
+                  }}
+                >
+                  {isToday(selectedDate) || isYesterday(selectedDate)
+                    ? 'Custom'
+                    : selectedDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+
           {/* Payment Method Selector (Card & Cash) */}
           <View style={styles.sectionBlock}>
             <ThemedText
@@ -363,10 +507,18 @@ export default function QuickAddScreen() {
       <AddCategoryModal
         visible={addCategoryModalVisible}
         onClose={() => setAddCategoryModalVisible(false)}
-        onAddCategory={async (name, limit, icon) => {
-          await addCustomCategory(name, limit, icon);
+        onAddCategory={async (name, icon) => {
+          await addCustomCategory(name, icon);
           setCategory(name);
         }}
+      />
+
+      {/* Custom Date Picker Modal */}
+      <CustomDatePickerModal
+        visible={datePickerVisible}
+        selectedDate={selectedDate}
+        onClose={() => setDatePickerVisible(false)}
+        onSelectDate={(newD) => setSelectedDate(newD)}
       />
     </View>
   );
@@ -440,6 +592,22 @@ const styles = StyleSheet.create({
   sectionHeader: {
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  dateSelectorRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  datePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.lg,
+  },
+  customDatePill: {
+    flex: 1.2,
   },
   paymentMethodRow: {
     flexDirection: 'row',

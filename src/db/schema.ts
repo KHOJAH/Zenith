@@ -20,17 +20,18 @@ export interface DateInterval {
   endDate: string;   // ISO or YYYY-MM-DD
 }
 
-export interface BudgetCategory {
+export interface CategoryItem {
   category: string;
-  monthly_limit: number;
   icon: string;
-  subtitle: string;
+  subtitle?: string;
 }
+
+// Deprecated alias kept for backward compatibility if needed
+export type BudgetCategory = CategoryItem;
 
 export interface CategorySummary {
   category: string;
   spent: number;
-  limit: number;
   percentage: number;
   icon: string;
   color: string;

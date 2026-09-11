@@ -114,11 +114,11 @@ export default function DashboardScreen() {
               styles.statusBadge,
               {
                 backgroundColor:
-                  analytics.budgetUsedPercent > 90
-                    ? colors.errorContainer
-                    : isDark
-                    ? 'rgba(16, 185, 129, 0.15)'
-                    : 'rgba(0, 108, 73, 0.1)',
+                  analytics.netSavings >= 0
+                    ? isDark
+                      ? 'rgba(16, 185, 129, 0.15)'
+                      : 'rgba(0, 108, 73, 0.1)'
+                    : colors.errorContainer,
               },
             ]}
           >
@@ -127,16 +127,16 @@ export default function DashboardScreen() {
                 styles.statusDot,
                 {
                   backgroundColor:
-                    analytics.budgetUsedPercent > 90 ? colors.error : colors.secondary,
+                    analytics.netSavings >= 0 ? colors.secondary : colors.error,
                 },
               ]}
             />
             <ThemedText
               variant="labelSm"
-              color={analytics.budgetUsedPercent > 90 ? colors.error : colors.secondary}
+              color={analytics.netSavings >= 0 ? colors.secondary : colors.error}
               style={{ fontWeight: '700', letterSpacing: 0.6 }}
             >
-              {analytics.budgetUsedPercent > 90 ? 'NEAR LIMIT' : 'ON TRACK'}
+              {analytics.netSavings >= 0 ? 'NET POSITIVE' : 'NET DEFICIT'}
             </ThemedText>
           </View>
         </View>
@@ -227,17 +227,6 @@ export default function DashboardScreen() {
                 Received
               </ThemedText>
             </View>
-            <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceContainer }]}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: analytics.totalIncome > 0 ? '100%' : '0%',
-                    backgroundColor: colors.secondary,
-                  },
-                ]}
-              />
-            </View>
           </Card>
 
           {/* Card 2: Expenses */}
@@ -257,61 +246,8 @@ export default function DashboardScreen() {
                 {analytics.daysRemaining} days left
               </ThemedText>
             </View>
-            <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceContainer }]}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${Math.min(100, analytics.budgetUsedPercent)}%`,
-                    backgroundColor: isDark ? colors.text : colors.primary,
-                  },
-                ]}
-              />
-            </View>
           </Card>
         </View>
-
-        {/* Budget Progress Gauge */}
-        <Card padding="md" style={styles.spendCapCard} bordered={false}>
-          <View style={styles.spendCapHeader}>
-            <View style={styles.spendCapTitle}>
-              <Feather name="pie-chart" size={16} color={colors.primary} />
-              <ThemedText variant="headlineSm">Budget</ThemedText>
-            </View>
-            <ThemedText variant="labelMd" style={{ fontWeight: '700' }}>
-              {Math.round(analytics.budgetUsedPercent)}%
-            </ThemedText>
-          </View>
-
-          <View style={[styles.gaugeTrack, { backgroundColor: colors.surfaceContainer }]}>
-            <View
-              style={[
-                styles.gaugeFill,
-                {
-                  width: `${Math.min(100, analytics.budgetUsedPercent)}%`,
-                  backgroundColor:
-                    analytics.budgetUsedPercent > 90
-                      ? colors.error
-                      : isDark
-                      ? colors.secondary
-                      : colors.primary,
-                },
-              ]}
-            />
-          </View>
-
-          <View style={styles.spendCapFooter}>
-            <ThemedText variant="bodySm" color={colors.textSecondary}>
-              <ThemedText variant="bodySm" style={{ fontWeight: '700' }}>
-                {formatCurrency(analytics.totalExpenses, currency)}
-              </ThemedText>{' '}
-              of {formatCurrency(analytics.budgetCap, currency)}
-            </ThemedText>
-            <ThemedText variant="labelSm" color={colors.secondary} style={{ fontWeight: '700' }}>
-              {formatCurrency(analytics.budgetRemaining, currency)} remaining
-            </ThemedText>
-          </View>
-        </Card>
 
         {/* Recent Transactions Section */}
         <View style={styles.activitySection}>
@@ -514,45 +450,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: spacing.xs,
-  },
-  progressBarBg: {
-    height: 4,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-    width: '100%',
-    marginTop: 2,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-  spendCapCard: {
-    gap: spacing.sm,
-  },
-  spendCapHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  spendCapTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  gaugeTrack: {
-    height: 8,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  gaugeFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-  spendCapFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    marginTop: spacing.xxs,
   },
   activitySection: {
     gap: spacing.sm,

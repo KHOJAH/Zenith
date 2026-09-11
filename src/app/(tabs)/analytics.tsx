@@ -129,10 +129,7 @@ export default function AnalyticsScreen() {
                         <ThemedText variant="bodyMd" color={colors.secondary} style={{ fontWeight: '700' }}>
                           {topCategory.category}
                         </ThemedText>{' '}
-                        at {formatCurrency(topCategory.spent, currency)} ({Math.round(topCategory.percentage)}% of budget). Remaining budget:{' '}
-                        <ThemedText variant="bodyMd" style={{ fontWeight: '700' }}>
-                          {formatCurrency(analytics.budgetRemaining, currency)}
-                        </ThemedText>.
+                        at {formatCurrency(topCategory.spent, currency)} ({Math.round(topCategory.percentage)}% of total outflow).
                       </>
                     ) : (
                       <>
@@ -152,7 +149,7 @@ export default function AnalyticsScreen() {
             <Card padding="lg" style={styles.donutCard} bordered={false}>
               <View style={styles.donutHeader}>
                 <View>
-                  <ThemedText variant="headlineSm">Budget Breakdown</ThemedText>
+                  <ThemedText variant="headlineSm">Category Distribution</ThemedText>
                   <ThemedText
                     variant="bodySm"
                     color={colors.textSecondary}
@@ -167,13 +164,13 @@ export default function AnalyticsScreen() {
                     { backgroundColor: 'rgba(16, 185, 129, 0.15)' },
                   ]}
                 >
-                  <Feather name="check-circle" size={12} color={colors.secondary} />
+                  <Feather name="pie-chart" size={12} color={colors.secondary} />
                   <ThemedText
                     variant="labelSm"
                     color={colors.secondary}
                     style={{ fontWeight: '700' }}
                   >
-                    {Math.round(analytics.budgetUsedPercent)}% Spent
+                    {analytics.categorySummaries.filter((c) => c.spent > 0).length} Active
                   </ThemedText>
                 </View>
               </View>
@@ -181,7 +178,6 @@ export default function AnalyticsScreen() {
               <DonutChart
                 categorySummaries={analytics.categorySummaries}
                 totalSpent={analytics.totalExpenses}
-                totalLimit={analytics.budgetCap}
                 currency={currency}
               />
             </Card>
@@ -201,10 +197,10 @@ export default function AnalyticsScreen() {
 
                 <View style={{ alignItems: 'flex-end' }}>
                   <ThemedText variant="labelMd" color={colors.secondary} style={{ fontWeight: '700' }}>
-                    {analytics.budgetRemaining > 0 ? 'Under Budget' : 'Limit Reached'}
+                    {formatCurrency(analytics.totalExpenses, currency)}
                   </ThemedText>
                   <ThemedText variant="bodySm" color={colors.textTertiary}>
-                    {formatCurrency(analytics.budgetRemaining, currency)} remaining
+                    Total outflow
                   </ThemedText>
                 </View>
               </View>
@@ -242,16 +238,14 @@ export default function AnalyticsScreen() {
               </View>
             </View>
 
-            {/* Category Budgets Section */}
+            {/* Category Spending Section */}
             <View style={styles.categoriesSection}>
               <View style={styles.catHeaderRow}>
-                <ThemedText variant="headlineMd">Category Budgets</ThemedText>
+                <ThemedText variant="headlineMd">Category Spending</ThemedText>
               </View>
 
               <View style={styles.categoryStack}>
                 {analytics.categorySummaries.map((cat) => {
-                  const isNearLimit = cat.percentage >= 90;
-
                   return (
                     <Card key={cat.category} padding="md" style={styles.categoryCard} bordered={false}>
                       <View style={styles.catTopRow}>
@@ -273,50 +267,15 @@ export default function AnalyticsScreen() {
                               {cat.category}
                             </ThemedText>
                             <ThemedText variant="bodySm" color={colors.textSecondary}>
-                              Cap: {formatCurrency(cat.limit, currency)}
+                              {Math.round(cat.percentage)}% of total expenses
                             </ThemedText>
                           </View>
                         </View>
 
                         <View style={{ alignItems: 'flex-end' }}>
                           <ThemedText variant="headlineSm" style={{ fontWeight: '700' }}>
-                            {formatCurrency(cat.spent, currency)}{' '}
-                            <ThemedText variant="bodySm" color={colors.textTertiary}>
-                              / {formatCurrency(cat.limit, currency)}
-                            </ThemedText>
+                            {formatCurrency(cat.spent, currency)}
                           </ThemedText>
-
-                          {isNearLimit ? (
-                            <View
-                              style={[
-                                styles.pillBadge,
-                                { backgroundColor: colors.errorContainer },
-                              ]}
-                            >
-                              <ThemedText
-                                variant="labelSm"
-                                color={colors.error}
-                                style={{ fontWeight: '700' }}
-                              >
-                                {Math.round(cat.percentage)}% Near Limit
-                              </ThemedText>
-                            </View>
-                          ) : (
-                            <View
-                              style={[
-                                styles.pillBadge,
-                                { backgroundColor: 'rgba(16, 185, 129, 0.15)' },
-                              ]}
-                            >
-                              <ThemedText
-                                variant="labelSm"
-                                color={colors.secondary}
-                                style={{ fontWeight: '700' }}
-                              >
-                                {formatCurrency(Math.max(0, cat.limit - cat.spent), currency)} left
-                              </ThemedText>
-                            </View>
-                          )}
                         </View>
                       </View>
 
@@ -327,7 +286,7 @@ export default function AnalyticsScreen() {
                             styles.meterFill,
                             {
                               width: `${cat.percentage}%`,
-                              backgroundColor: isNearLimit ? colors.error : colors.secondary,
+                              backgroundColor: cat.color || (isDark ? colors.secondary : colors.primary),
                             },
                           ]}
                         />

@@ -27,7 +27,7 @@ export default function TransactionsScreen() {
   const { colors, isDark } = useTheme();
   const {
     transactions,
-    budgets,
+    categories,
     analytics,
     currency,
     dateInterval,
@@ -40,9 +40,9 @@ export default function TransactionsScreen() {
   const [intervalModalVisible, setIntervalModalVisible] = useState(false);
 
   const filterCategories = useMemo(() => {
-    const list = ['All', ...budgets.map((b) => b.category), 'Income'];
+    const list = ['All', ...categories.map((b) => b.category), 'Income'];
     return Array.from(new Set(list));
-  }, [budgets]);
+  }, [categories]);
 
   // Filter transactions within selected date interval and query
   const filtered = useMemo(() => {

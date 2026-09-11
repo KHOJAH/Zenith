@@ -10,7 +10,7 @@ import { spacing } from '@/theme/spacing';
 interface DonutChartProps {
   categorySummaries: CategorySummary[];
   totalSpent: number;
-  totalLimit: number;
+  totalLimit?: number;
   currency?: string;
   size?: number;
 }
@@ -18,7 +18,6 @@ interface DonutChartProps {
 export function DonutChart({
   categorySummaries,
   totalSpent,
-  totalLimit,
   currency = 'USD',
   size = 220,
 }: DonutChartProps) {
@@ -83,14 +82,14 @@ export function DonutChart({
 
         {/* Center Typography Stat */}
         <View style={styles.innerLabel}>
-          <ThemedText variant="labelSm" color={colors.textSecondary} style={{ textTransform: 'uppercase' }}>
-            Spent Total
+          <ThemedText variant="labelSm" color={colors.textSecondary} style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Total Spent
           </ThemedText>
           <ThemedText variant="headlineMd" style={{ marginVertical: 2 }}>
             {formatCurrency(totalSpent, currency)}
           </ThemedText>
           <ThemedText variant="bodySm" color={colors.textTertiary}>
-            of {formatCurrency(totalLimit, currency)} limit
+            {activeCategories.length} {activeCategories.length === 1 ? 'category' : 'categories'}
           </ThemedText>
         </View>
       </View>

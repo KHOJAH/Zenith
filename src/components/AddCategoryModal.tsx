@@ -20,7 +20,7 @@ import { Button } from './Button';
 interface AddCategoryModalProps {
   visible: boolean;
   onClose: () => void;
-  onAddCategory: (name: string, monthlyLimit: number, icon: string) => void;
+  onAddCategory: (name: string, icon: string) => void;
 }
 
 const AVAILABLE_ICONS = [
@@ -50,16 +50,13 @@ export function AddCategoryModal({
   const { colors, isDark } = useTheme();
 
   const [categoryName, setCategoryName] = useState('');
-  const [budgetLimit, setBudgetLimit] = useState('300');
   const [selectedIcon, setSelectedIcon] = useState('tag');
 
   const handleSave = () => {
     const trimmed = categoryName.trim();
     if (!trimmed) return;
-    const limit = parseFloat(budgetLimit) || 300;
-    onAddCategory(trimmed, limit, selectedIcon);
+    onAddCategory(trimmed, selectedIcon);
     setCategoryName('');
-    setBudgetLimit('300');
     onClose();
   };
 
@@ -130,28 +127,7 @@ export function AddCategoryModal({
               </View>
             </View>
 
-            {/* Monthly Budget Limit Input */}
-            <View style={styles.inputGroup}>
-              <ThemedText variant="labelSm" color={colors.textSecondary} style={styles.label}>
-                MONTHLY BUDGET LIMIT (OPTIONAL)
-              </ThemedText>
-              <View
-                style={[
-                  styles.inputWrap,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                ]}
-              >
-                <Feather name="dollar-sign" size={18} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="300"
-                  placeholderTextColor={colors.textTertiary}
-                  value={budgetLimit}
-                  onChangeText={setBudgetLimit}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
+
 
             {/* Icon Picker */}
             <View style={styles.inputGroup}>
