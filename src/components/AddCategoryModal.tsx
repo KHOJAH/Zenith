@@ -141,7 +141,7 @@ export function AddCategoryModal({
                     <Pressable
                       key={icon}
                       onPress={() => setSelectedIcon(icon)}
-                      style={[
+                      style={({ pressed }) => [
                         styles.iconBtn,
                         {
                           backgroundColor: isSelected
@@ -149,6 +149,7 @@ export function AddCategoryModal({
                               ? colors.secondary
                               : colors.primary
                             : colors.surfaceContainerLow,
+                          transform: [{ scale: pressed ? 0.92 : 1 }],
                         },
                       ]}
                     >

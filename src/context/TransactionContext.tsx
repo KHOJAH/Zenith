@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { Transaction, CategoryItem, DateInterval } from '@/db/schema';
 import * as db from '@/db/database';
 import { calculateMonthAnalytics, MonthAnalytics } from '@/utils/velocity';
+import { getItem, setItem, getJSON, setJSON, STORAGE_KEYS } from '@/utils/storage';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -33,36 +34,88 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   // Initialize date interval to current month
   const now = new Date();
-  const [dateInterval, setDateInterval] = useState<DateInterval>({
+  const defaultInterval: DateInterval = {
     id: 'current_month',
     label: now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
     startDate: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString(),
     endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString(),
-  });
+  };
+  const [dateInterval, setDateIntervalState] = useState<DateInterval>(defaultInterval);
 
-  // Load persisted currency on mount
+  // Load persisted settings on mount
   useEffect(() => {
-    db.getSetting('currency', 'USD').then((saved) => {
-      if (saved) {
-        setCurrencyState(saved);
+    async function loadPersistedSettings() {
+      try {
+        const [savedCurrency, savedHidden, savedInterval] = await Promise.all([
+          getItem(STORAGE_KEYS.CURRENCY, 'USD'),
+          getItem(STORAGE_KEYS.BALANCE_HIDDEN, 'false'),
+          getJSON<DateInterval>(STORAGE_KEYS.DATE_INTERVAL, defaultInterval),
+        ]);
+
+        if (savedCurrency) setCurrencyState(savedCurrency);
+        if (savedHidden === 'true') setIsBalanceHidden(true);
+        if (savedInterval && savedInterval.startDate && savedInterval.endDate) {
+          setDateIntervalState(savedInterval);
+        }
+      } catch (err) {
+        console.warn('Failed to load persisted settings:', err);
       }
-    });
+    }
+
+    loadPersistedSettings();
   }, []);
 
   const setCurrency = useCallback((c: string) => {
     setCurrencyState(c);
-    db.setSetting('currency', c).catch((err) => {
-      console.error('Failed to persist currency:', err);
+    setItem(STORAGE_KEYS.CURRENCY, c);
+  }, []);
+
+  const setDateInterval = useCallback((interval: DateInterval) => {
+    setDateIntervalState(interval);
+    setJSON(STORAGE_KEYS.DATE_INTERVAL, interval);
+  }, []);
+
+  const toggleBalanceVisibility = useCallback(() => {
+    setIsBalanceHidden((prev) => {
+      const next = !prev;
+      setItem(STORAGE_KEYS.BALANCE_HIDDEN, String(next));
+      return next;
     });
   }, []);
 
   const refresh = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [txList, catList] = await Promise.all([
+      let [txList, catList] = await Promise.all([
         db.getTransactions(),
         db.getCategories(),
       ]);
+
+      // If database returned empty on Web, check for storage backup to recover data
+      if (txList.length === 0) {
+        const backupTx = await getJSON<Transaction[]>(STORAGE_KEYS.TRANSACTIONS_BACKUP, []);
+        if (backupTx.length > 0) {
+          for (const tx of backupTx) {
+            await db.insertTransaction(tx);
+          }
+          txList = backupTx;
+        }
+      } else {
+        setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, txList);
+      }
+
+      if (catList.length === 0) {
+        const backupCats = await getJSON<CategoryItem[]>(STORAGE_KEYS.CATEGORIES_BACKUP, []);
+        if (backupCats.length > 0) {
+          for (const c of backupCats) {
+            await db.addCategory(c);
+          }
+          catList = backupCats;
+        }
+      } else {
+        setJSON(STORAGE_KEYS.CATEGORIES_BACKUP, catList);
+      }
+
       setTransactions(txList);
       setCategories(catList);
     } catch (error) {
@@ -103,11 +156,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   const clearAll = async () => {
     await db.clearAllTransactions();
+    await setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, []);
     await refresh();
-  };
-
-  const toggleBalanceVisibility = () => {
-    setIsBalanceHidden((prev) => !prev);
   };
 
   const analytics = calculateMonthAnalytics(

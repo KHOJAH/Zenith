@@ -90,7 +90,11 @@ export function DateIntervalModal({
     ];
   };
 
+  const isCustomInvalid = selectedType === 'custom' && customStart.getTime() > customEnd.getTime();
+
   const handleApply = () => {
+    if (isCustomInvalid) return;
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
@@ -184,7 +188,13 @@ export function DateIntervalModal({
             </View>
             <Pressable
               onPress={onClose}
-              style={[styles.closeBtn, { backgroundColor: colors.surfaceContainerLow }]}
+              style={({ pressed }) => [
+                styles.closeBtn,
+                {
+                  backgroundColor: colors.surfaceContainerLow,
+                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                },
+              ]}
             >
               <Feather name="x" size={18} color={colors.text} />
             </Pressable>
@@ -203,7 +213,7 @@ export function DateIntervalModal({
                       Haptics.selectionAsync();
                     } catch {}
                   }}
-                  style={[
+                  style={({ pressed }) => [
                     styles.presetRow,
                     {
                       backgroundColor: isSelected
@@ -212,6 +222,7 @@ export function DateIntervalModal({
                       borderColor: isSelected
                         ? colors.borderStrong
                         : colors.border,
+                      transform: [{ scale: pressed ? 0.98 : 1 }],
                     },
                   ]}
                 >
@@ -282,25 +293,37 @@ export function DateIntervalModal({
                     <View style={styles.stepperGroup}>
                       <Pressable
                         onPress={() => adjustStartDate(-1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">-1d</ThemedText>
                       </Pressable>
                       <Pressable
                         onPress={() => adjustStartDate(1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">+1d</ThemedText>
                       </Pressable>
                       <Pressable
                         onPress={() => adjustStartMonth(-1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">-1m</ThemedText>
                       </Pressable>
                       <Pressable
                         onPress={() => adjustStartMonth(1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">+1m</ThemedText>
                       </Pressable>
@@ -320,31 +343,52 @@ export function DateIntervalModal({
                     <View style={styles.stepperGroup}>
                       <Pressable
                         onPress={() => adjustEndDate(-1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">-1d</ThemedText>
                       </Pressable>
                       <Pressable
                         onPress={() => adjustEndDate(1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">+1d</ThemedText>
                       </Pressable>
                       <Pressable
                         onPress={() => adjustEndMonth(-1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">-1m</ThemedText>
                       </Pressable>
                       <Pressable
                         onPress={() => adjustEndMonth(1)}
-                        style={[styles.stepBtn, { backgroundColor: colors.surface }]}
+                        style={({ pressed }) => [
+                          styles.stepBtn,
+                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
                       >
                         <ThemedText variant="labelSm">+1m</ThemedText>
                       </Pressable>
                     </View>
                   </View>
                 </View>
+
+                {isCustomInvalid && (
+                  <View style={[styles.invalidBanner, { backgroundColor: colors.errorContainer }]}>
+                    <Feather name="alert-circle" size={16} color={colors.error} />
+                    <ThemedText variant="bodySm" color={colors.error} style={{ fontWeight: '600' }}>
+                      Start date cannot be after end date
+                    </ThemedText>
+                  </View>
+                )}
               </View>
             )}
           </ScrollView>
@@ -355,6 +399,7 @@ export function DateIntervalModal({
               title="Apply Interval"
               variant="primary"
               size="lg"
+              disabled={isCustomInvalid}
               onPress={handleApply}
             />
           </View>
@@ -451,5 +496,13 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingTop: spacing.xs,
+  },
+  invalidBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    marginTop: spacing.xs,
   },
 });

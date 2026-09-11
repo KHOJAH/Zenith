@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOut, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
 import { formatCurrency, formatDateGroup } from '@/utils/formatters';
@@ -263,14 +263,16 @@ export default function DashboardScreen() {
           </View>
 
           {recentTransactions.length === 0 ? (
-            <Card padding="lg" bordered={false}>
-              <EmptyState
-                title="No Transactions"
-                description="No transactions recorded for this interval."
-                onAction={() => router.push('/(tabs)/quick-add')}
-                actionTitle="Quick Add Transaction"
-              />
-            </Card>
+            <Animated.View entering={FadeIn.duration(200)}>
+              <Card padding="lg" bordered={false}>
+                <EmptyState
+                  title="No Transactions"
+                  description="No transactions recorded for this interval."
+                  onAction={() => router.push('/(tabs)/quick-add')}
+                  actionTitle="Quick Add Transaction"
+                />
+              </Card>
+            </Animated.View>
           ) : (
             <Card padding="xs" style={styles.activityCard} bordered={false}>
               {recentTransactions.map((tx, idx) => {
@@ -279,75 +281,81 @@ export default function DashboardScreen() {
                 const convertedAmount = convertCurrency(tx.amount, tx.currency || 'USD', currency);
 
                 return (
-                  <View
+                  <Animated.View
                     key={tx.id}
-                    style={[
-                      styles.txRow,
-                      {
-                        borderBottomColor: colors.border,
-                        borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
-                      },
-                    ]}
+                    entering={FadeInDown.duration(200).delay(Math.min(idx * 25, 200))}
+                    exiting={FadeOut.duration(150)}
+                    layout={LinearTransition.duration(200)}
                   >
-                    <View style={styles.txLeft}>
-                      <View
-                        style={[
-                          styles.txIconWrap,
-                          {
-                            backgroundColor:
-                              tx.type === 'income'
-                                ? 'rgba(16, 185, 129, 0.15)'
-                                : colors.surfaceContainerLow,
-                          },
-                        ]}
-                      >
-                        <Feather
-                          name={getCategoryIcon(tx.category) as any}
-                          size={18}
-                          color={tx.type === 'income' ? colors.secondary : colors.text}
-                        />
-                      </View>
+                    <View
+                      style={[
+                        styles.txRow,
+                        {
+                          borderBottomColor: colors.border,
+                          borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                        },
+                      ]}
+                    >
+                      <View style={styles.txLeft}>
+                        <View
+                          style={[
+                            styles.txIconWrap,
+                            {
+                              backgroundColor:
+                                tx.type === 'income'
+                                  ? 'rgba(16, 185, 129, 0.15)'
+                                  : colors.surfaceContainerLow,
+                            },
+                          ]}
+                        >
+                          <Feather
+                            name={getCategoryIcon(tx.category) as any}
+                            size={18}
+                            color={tx.type === 'income' ? colors.secondary : colors.text}
+                          />
+                        </View>
 
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <ThemedText variant="headlineSm" numberOfLines={1}>
-                          {tx.category}
-                        </ThemedText>
-                        <View style={styles.txMetaRow}>
-                          {tx.note ? (
-                            <>
-                              <ThemedText
-                                variant="bodySm"
-                                color={colors.textSecondary}
-                                numberOfLines={1}
-                                style={{ maxWidth: 130 }}
-                              >
-                                {tx.note}
-                              </ThemedText>
-                              <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
-                            </>
-                          ) : null}
-                          <ThemedText variant="bodySm" color={colors.textTertiary}>
-                            {formatDateGroup(tx.date)}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <ThemedText variant="headlineSm" numberOfLines={1}>
+                            {tx.category}
                           </ThemedText>
+                          <View style={styles.txMetaRow}>
+                            {tx.note ? (
+                              <>
+                                <ThemedText
+                                  variant="bodySm"
+                                  color={colors.textSecondary}
+                                  numberOfLines={1}
+                                  style={{ maxWidth: 130 }}
+                                >
+                                  {tx.note}
+                                </ThemedText>
+                                <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                              </>
+                            ) : null}
+                            <ThemedText variant="bodySm" color={colors.textTertiary}>
+                              {formatDateGroup(tx.date)}
+                            </ThemedText>
+                          </View>
                         </View>
                       </View>
-                    </View>
 
-                    <View style={styles.txRight}>
-                      <ThemedText
-                        variant="headlineSm"
-                        color={isExpense ? colors.text : colors.secondary}
-                        style={{ fontWeight: '700' }}
-                      >
-                        {isExpense
-                          ? `-${formatCurrency(convertedAmount, currency)}`
-                          : `+${formatCurrency(convertedAmount, currency)}`}
-                      </ThemedText>
-                      <ThemedText variant="labelSm" color={colors.textTertiary}>
-                        {tx.payment_method || 'Card'}
-                      </ThemedText>
+                      <View style={styles.txRight}>
+                        <ThemedText
+                          variant="headlineSm"
+                          color={isExpense ? colors.text : colors.secondary}
+                          style={{ fontWeight: '700' }}
+                        >
+                          {isExpense
+                            ? `-${formatCurrency(convertedAmount, currency)}`
+                            : `+${formatCurrency(convertedAmount, currency)}`}
+                        </ThemedText>
+                        <ThemedText variant="labelSm" color={colors.textTertiary}>
+                          {tx.payment_method || 'Card'}
+                        </ThemedText>
+                      </View>
                     </View>
-                  </View>
+                  </Animated.View>
                 );
               })}
             </Card>

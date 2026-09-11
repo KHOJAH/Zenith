@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import { palette, ThemeColors, ThemeMode } from '@/theme/colors';
+import { getItem, setItem, STORAGE_KEYS } from '@/utils/storage';
 
 interface ThemeContextType {
   mode: 'light' | 'dark' | 'system';
@@ -15,7 +16,29 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
-  const [mode, setMode] = useState<'light' | 'dark' | 'system'>('light');
+  const [mode, setModeState] = useState<'light' | 'dark' | 'system'>('light');
+
+  // Load persisted theme on mount
+  useEffect(() => {
+    getItem(STORAGE_KEYS.THEME_MODE, 'light').then((saved) => {
+      if (saved === 'light' || saved === 'dark' || saved === 'system') {
+        setModeState(saved);
+      }
+    });
+  }, []);
+
+  const setMode = useCallback((newMode: 'light' | 'dark' | 'system') => {
+    setModeState(newMode);
+    setItem(STORAGE_KEYS.THEME_MODE, newMode);
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setModeState((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      setItem(STORAGE_KEYS.THEME_MODE, next);
+      return next;
+    });
+  }, []);
 
   const resolvedMode: ThemeMode =
     mode === 'system'
@@ -26,10 +49,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const colors = palette[resolvedMode];
   const isDark = resolvedMode === 'dark';
-
-  const toggleTheme = () => {
-    setMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
 
   return (
     <ThemeContext.Provider

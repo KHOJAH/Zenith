@@ -6,9 +6,12 @@ import {
   Pressable,
   StyleSheet,
   Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown, FadeOut, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
 import { Transaction } from '@/db/schema';
@@ -21,6 +24,7 @@ import { Card } from '@/components/Card';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 import { DateIntervalModal } from '@/components/DateIntervalModal';
+import { Button } from '@/components/Button';
 
 export default function TransactionsScreen() {
   const router = useRouter();
@@ -33,11 +37,13 @@ export default function TransactionsScreen() {
     dateInterval,
     setDateInterval,
     deleteTransaction,
+    clearAll,
   } = useTransactions();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [intervalModalVisible, setIntervalModalVisible] = useState(false);
+  const [clearAllModalVisible, setClearAllModalVisible] = useState(false);
 
   const filterCategories = useMemo(() => {
     const list = ['All', ...categories.map((b) => b.category), 'Income'];
@@ -133,7 +139,37 @@ export default function TransactionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="Zenith" subtitle="Transactions" />
+      <Header
+        title="Zenith"
+        subtitle="Transactions"
+        rightAction={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear all transactions"
+            disabled={transactions.length === 0}
+            onPress={() => {
+              if (transactions.length === 0) return;
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              } catch {}
+              setClearAllModalVisible(true);
+            }}
+            style={({ pressed }) => [
+              styles.clearAllBtn,
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                opacity: transactions.length === 0 ? 0.3 : pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Feather
+              name="trash-2"
+              size={16}
+              color={transactions.length === 0 ? colors.textTertiary : colors.error}
+            />
+          </Pressable>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -249,7 +285,10 @@ export default function TransactionsScreen() {
             return (
               <Pressable
                 key={cat}
-                onPress={() => setSelectedCategory(cat)}
+                onPress={() => {
+                  try { Haptics.selectionAsync(); } catch {}
+                  setSelectedCategory(cat);
+                }}
                 style={({ pressed }) => [
                   styles.chip,
                   {
@@ -258,7 +297,7 @@ export default function TransactionsScreen() {
                         ? colors.secondary
                         : colors.primary
                       : colors.surfaceContainerLow,
-                    opacity: pressed ? 0.8 : 1,
+                    transform: [{ scale: pressed ? 0.95 : 1 }],
                   },
                 ]}
               >
@@ -282,26 +321,30 @@ export default function TransactionsScreen() {
 
         {/* Transactions Feed Groups */}
         {transactions.length === 0 ? (
-          <Card padding="lg" bordered={false}>
-            <EmptyState
-              title="No Transactions Yet"
-              description="Your ledger is completely clean. Tap below to log an expense or income."
-              onAction={() => router.push('/(tabs)/quick-add')}
-              actionTitle="Log First Transaction"
-            />
-          </Card>
+          <Animated.View entering={FadeIn.duration(200)}>
+            <Card padding="lg" bordered={false}>
+              <EmptyState
+                title="No Transactions Yet"
+                description="Your ledger is completely clean. Tap below to log an expense or income."
+                onAction={() => router.push('/(tabs)/quick-add')}
+                actionTitle="Log First Transaction"
+              />
+            </Card>
+          </Animated.View>
         ) : filtered.length === 0 ? (
-          <Card padding="lg" bordered={false}>
-            <EmptyState
-              title="No Matching Records"
-              description="No transactions found matching your search. Try changing your search query or category filter."
-              onAction={() => {
-                setSearchQuery('');
-                setSelectedCategory('All');
-              }}
-              actionTitle="Reset Filter"
-            />
-          </Card>
+          <Animated.View entering={FadeIn.duration(200)}>
+            <Card padding="lg" bordered={false}>
+              <EmptyState
+                title="No Matching Records"
+                description="No transactions found matching your search. Try changing your search query or category filter."
+                onAction={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('All');
+                }}
+                actionTitle="Reset Filter"
+              />
+            </Card>
+          </Animated.View>
         ) : (
           <View style={styles.groupsContainer}>
             {groupedTransactions.map((group) => (
@@ -330,80 +373,86 @@ export default function TransactionsScreen() {
                     const convertedAmount = convertCurrency(tx.amount, tx.currency || 'USD', currency);
 
                     return (
-                      <Pressable
+                      <Animated.View
                         key={tx.id}
-                        onLongPress={() => handleDelete(tx.id, tx.category, convertedAmount)}
-                        style={({ pressed }) => [
-                          styles.itemRow,
-                          {
-                            borderBottomColor: colors.border,
-                            borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
-                            backgroundColor: pressed
-                              ? colors.surfaceContainerLow
-                              : 'transparent',
-                          },
-                        ]}
+                        entering={FadeInDown.duration(200).delay(Math.min(idx * 25, 200))}
+                        exiting={FadeOut.duration(150)}
+                        layout={LinearTransition.duration(200)}
                       >
-                        <View style={styles.itemLeft}>
-                          <View
-                            style={[
-                              styles.itemIconWrap,
-                              {
-                                backgroundColor:
-                                  tx.type === 'income'
-                                    ? 'rgba(16, 185, 129, 0.15)'
-                                    : colors.surfaceContainerLow,
-                              },
-                            ]}
-                          >
-                            <Feather
-                              name={getCategoryIcon(tx.category) as any}
-                              size={18}
-                              color={tx.type === 'income' ? colors.secondary : colors.text}
-                            />
-                          </View>
-
-                          <View style={{ flex: 1, minWidth: 0 }}>
-                            <View style={styles.titleLine}>
-                              <ThemedText variant="headlineSm" numberOfLines={1} style={{ flex: 1 }}>
-                                {tx.category}
-                              </ThemedText>
-                              <ThemedText
-                                variant="numericCurrency"
-                                color={isExpense ? colors.text : colors.secondary}
-                                style={{ fontWeight: '700', marginLeft: spacing.xs }}
-                              >
-                                {isExpense
-                                  ? `-${formatCurrency(convertedAmount, currency)}`
-                                  : `+${formatCurrency(convertedAmount, currency)}`}
-                              </ThemedText>
+                        <Pressable
+                          onLongPress={() => handleDelete(tx.id, tx.category, convertedAmount)}
+                          style={({ pressed }) => [
+                            styles.itemRow,
+                            {
+                              borderBottomColor: colors.border,
+                              borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                              backgroundColor: pressed
+                                ? colors.surfaceContainerLow
+                                : 'transparent',
+                            },
+                          ]}
+                        >
+                          <View style={styles.itemLeft}>
+                            <View
+                              style={[
+                                styles.itemIconWrap,
+                                {
+                                  backgroundColor:
+                                    tx.type === 'income'
+                                      ? 'rgba(16, 185, 129, 0.15)'
+                                      : colors.surfaceContainerLow,
+                                },
+                              ]}
+                            >
+                              <Feather
+                                name={getCategoryIcon(tx.category) as any}
+                                size={18}
+                                color={tx.type === 'income' ? colors.secondary : colors.text}
+                              />
                             </View>
 
-                            <View style={styles.metaLine}>
-                              <ThemedText variant="bodySm" color={colors.textSecondary}>
-                                {tx.payment_method || 'Card'}
-                              </ThemedText>
-                              <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
-                              <ThemedText variant="bodySm" color={colors.textTertiary}>
-                                {formatDateGroup(tx.date)}
-                              </ThemedText>
-                              {tx.note ? (
-                                <>
-                                  <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
-                                  <ThemedText
-                                    variant="bodySm"
-                                    color={colors.textTertiary}
-                                    numberOfLines={1}
-                                    style={{ flex: 1 }}
-                                  >
-                                    {tx.note}
-                                  </ThemedText>
-                                </>
-                              ) : null}
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <View style={styles.titleLine}>
+                                <ThemedText variant="headlineSm" numberOfLines={1} style={{ flex: 1 }}>
+                                  {tx.category}
+                                </ThemedText>
+                                <ThemedText
+                                  variant="numericCurrency"
+                                  color={isExpense ? colors.text : colors.secondary}
+                                  style={{ fontWeight: '700', marginLeft: spacing.xs }}
+                                >
+                                  {isExpense
+                                    ? `-${formatCurrency(convertedAmount, currency)}`
+                                    : `+${formatCurrency(convertedAmount, currency)}`}
+                                </ThemedText>
+                              </View>
+
+                              <View style={styles.metaLine}>
+                                <ThemedText variant="bodySm" color={colors.textSecondary}>
+                                  {tx.payment_method || 'Card'}
+                                </ThemedText>
+                                <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                                <ThemedText variant="bodySm" color={colors.textTertiary}>
+                                  {formatDateGroup(tx.date)}
+                                </ThemedText>
+                                {tx.note ? (
+                                  <>
+                                    <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                                    <ThemedText
+                                      variant="bodySm"
+                                      color={colors.textTertiary}
+                                      numberOfLines={1}
+                                      style={{ flex: 1 }}
+                                    >
+                                      {tx.note}
+                                    </ThemedText>
+                                  </>
+                                ) : null}
+                              </View>
                             </View>
                           </View>
-                        </View>
-                      </Pressable>
+                        </Pressable>
+                      </Animated.View>
                     );
                   })}
                 </Card>
@@ -420,6 +469,67 @@ export default function TransactionsScreen() {
         onSelectInterval={(inv) => setDateInterval(inv)}
         onClose={() => setIntervalModalVisible(false)}
       />
+
+      {/* Confirmation Modal to Clear All Transactions */}
+      <Modal
+        visible={clearAllModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setClearAllModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.confirmCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={[styles.dangerIconWrap, { backgroundColor: colors.errorContainer }]}>
+              <Feather name="alert-triangle" size={24} color={colors.error} />
+            </View>
+
+            <ThemedText variant="headlineSm" style={{ textAlign: 'center', marginTop: spacing.sm }}>
+              Clear All Transactions?
+            </ThemedText>
+
+            <ThemedText
+              variant="bodyMd"
+              color={colors.textSecondary}
+              style={{ textAlign: 'center', marginTop: spacing.xs, lineHeight: 22 }}
+            >
+              This will permanently delete all {transactions.length} recorded {transactions.length === 1 ? 'transaction' : 'transactions'}. This action cannot be undone.
+            </ThemedText>
+
+            <View style={styles.modalBtnRow}>
+              <Button
+                title="Cancel"
+                variant="ghost"
+                size="md"
+                style={{ flex: 1 }}
+                onPress={() => setClearAllModalVisible(false)}
+              />
+              <Button
+                title="Delete All"
+                variant="danger"
+                size="md"
+                style={{ flex: 1 }}
+                onPress={async () => {
+                  try {
+                    await clearAll();
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                  setClearAllModalVisible(false);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -532,5 +642,41 @@ const styles = StyleSheet.create({
     width: 3,
     height: 3,
     borderRadius: 1.5,
+  },
+  clearAllBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  dangerIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    width: '100%',
   },
 });

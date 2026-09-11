@@ -165,12 +165,16 @@ export default function QuickAddScreen() {
                   key={type}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
-                  onPress={() => setFlowType(type)}
-                  style={[
+                  onPress={() => {
+                    try { Haptics.selectionAsync(); } catch {}
+                    setFlowType(type);
+                  }}
+                  style={({ pressed }) => [
                     styles.typeBtn,
                     isSelected && {
                       backgroundColor: isDark ? colors.secondary : colors.primary,
                     },
+                    { transform: [{ scale: pressed ? 0.96 : 1 }] },
                   ]}
                 >
                   <ThemedText
@@ -289,11 +293,12 @@ export default function QuickAddScreen() {
                   try { Haptics.selectionAsync(); } catch {}
                   setSelectedDate(new Date());
                 }}
-                style={[
+                style={({ pressed }) => [
                   styles.datePill,
                   isToday(selectedDate)
                     ? { backgroundColor: isDark ? colors.secondary : colors.primary }
                     : { backgroundColor: colors.surfaceContainerLow },
+                  { transform: [{ scale: pressed ? 0.96 : 1 }] },
                 ]}
               >
                 <ThemedText
@@ -320,11 +325,12 @@ export default function QuickAddScreen() {
                   y.setDate(y.getDate() - 1);
                   setSelectedDate(y);
                 }}
-                style={[
+                style={({ pressed }) => [
                   styles.datePill,
                   isYesterday(selectedDate)
                     ? { backgroundColor: isDark ? colors.secondary : colors.primary }
                     : { backgroundColor: colors.surfaceContainerLow },
+                  { transform: [{ scale: pressed ? 0.96 : 1 }] },
                 ]}
               >
                 <ThemedText
@@ -349,12 +355,13 @@ export default function QuickAddScreen() {
                   try { Haptics.selectionAsync(); } catch {}
                   setDatePickerVisible(true);
                 }}
-                style={[
+                style={({ pressed }) => [
                   styles.datePill,
                   styles.customDatePill,
                   !isToday(selectedDate) && !isYesterday(selectedDate)
                     ? { backgroundColor: isDark ? colors.secondary : colors.primary }
                     : { backgroundColor: colors.surfaceContainerLow },
+                  { transform: [{ scale: pressed ? 0.96 : 1 }] },
                 ]}
               >
                 <Feather
@@ -420,7 +427,7 @@ export default function QuickAddScreen() {
                             ? colors.secondary
                             : colors.primary
                           : colors.surfaceContainerLow,
-                        opacity: pressed ? 0.8 : 1,
+                        transform: [{ scale: pressed ? 0.96 : 1 }],
                       },
                     ]}
                   >
@@ -484,6 +491,7 @@ export default function QuickAddScreen() {
               size="lg"
               variant="primary"
               loading={isSaving}
+              disabled={!parseFloat(rawAmount) || parseFloat(rawAmount) <= 0 || isSaving}
               onPress={handleSave}
               icon={
                 savedSuccess ? (
