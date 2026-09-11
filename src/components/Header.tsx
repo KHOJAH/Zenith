@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, Image } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,20 +69,11 @@ export function Header({
             )}
 
             <View style={styles.logoRow}>
-              <View
-                style={[
-                  styles.brandGlyph,
-                  { backgroundColor: isDark ? colors.secondary : colors.primary },
-                ]}
-              >
-                <ThemedText
-                  variant="labelSm"
-                  color={isDark ? '#052E16' : '#FFFFFF'}
-                  style={{ fontWeight: '900' }}
-                >
-                  Z
-                </ThemedText>
-              </View>
+              <Image
+                source={require('../../assets/images/icon.png')}
+                style={styles.brandGlyph}
+                resizeMode="cover"
+              />
               <ThemedText variant="headlineSm" style={{ letterSpacing: -0.4 }}>
                 {title}
               </ThemedText>
