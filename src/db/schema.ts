@@ -7,11 +7,8 @@ export interface Transaction {
   category: string;
   merchant: string;
   note?: string;
-  tags?: string;
   date: string; // ISO date string
   payment_method?: string;
-  is_split?: number; // 0 or 1
-  split_count?: number;
   created_at: string;
 }
 

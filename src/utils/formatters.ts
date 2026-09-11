@@ -1,22 +1,25 @@
+import { getCurrencyInfo } from './currencies';
+
 export function formatCurrency(
   amount: number,
-  currency = 'USD',
+  currencyCode = 'USD',
   showSign = false
 ): string {
-  const absAmount = Math.abs(amount);
+  const info = getCurrencyInfo(currencyCode);
+  const symbol = info.symbol;
+
+  const absAmount = Math.abs(amount || 0);
   const formatted = absAmount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
-  const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
-
   if (showSign) {
-    if (amount > 0) return `+${symbol}${formatted}`;
-    if (amount < 0) return `-${symbol}${formatted}`;
+    if (amount > 0) return `+${symbol} ${formatted}`.trim();
+    if (amount < 0) return `-${symbol} ${formatted}`.trim();
   }
 
-  return `${symbol}${formatted}`;
+  return `${symbol} ${formatted}`.trim();
 }
 
 export function formatDateGroup(dateStr: string): string {
@@ -53,7 +56,11 @@ export function formatTime(dateStr: string): string {
   const minutes = date.getMinutes();
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12;
-  hours = hours ? hours : 12; // 0 becomes 12
+  hours = hours ? hours : 12;
   const minutesStr = minutes < 10 ? `0${minutes}` : minutes;
   return `${hours}:${minutesStr} ${ampm}`;
+}
+
+export function getCurrentMonthName(): string {
+  return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }

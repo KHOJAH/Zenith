@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ViewProps, ViewStyle } from 'react-native';
+import { View, ViewProps, ViewStyle, StyleSheet } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { radius } from '@/theme/radius';
 import { spacing } from '@/theme/spacing';
@@ -13,7 +13,7 @@ export interface CardProps extends ViewProps {
 export function Card({
   variant = 'surface',
   padding = 'md',
-  bordered = true,
+  bordered = false,
   style,
   children,
   ...props
@@ -29,7 +29,7 @@ export function Card({
     backgroundColor,
     borderRadius: radius.xl,
     padding: spacing[padding],
-    borderWidth: bordered ? 1 : 0,
+    borderWidth: bordered ? StyleSheet.hairlineWidth : 0,
     borderColor: variant === 'hero' ? (isDark ? '#2D3748' : '#1E293B') : colors.border,
   };
 

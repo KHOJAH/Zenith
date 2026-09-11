@@ -1,13 +1,51 @@
 import * as SQLite from 'expo-sqlite';
-import { Transaction, BudgetCategory, CategorySummary } from './schema';
-import { INITIAL_BUDGETS, DEMO_TRANSACTIONS } from './seed';
+import { Transaction, BudgetCategory } from './schema';
+
+export const DEFAULT_BUDGETS: BudgetCategory[] = [
+  {
+    category: 'Housing & Utilities',
+    monthly_limit: 1500,
+    icon: 'home',
+    subtitle: 'Rent, water, electricity, internet',
+  },
+  {
+    category: 'Food & Dining',
+    monthly_limit: 700,
+    icon: 'coffee',
+    subtitle: 'Groceries, cafes, restaurants',
+  },
+  {
+    category: 'Shopping & Tech',
+    monthly_limit: 400,
+    icon: 'shopping-bag',
+    subtitle: 'Hardware, apparel, supplies',
+  },
+  {
+    category: 'Entertainment',
+    monthly_limit: 250,
+    icon: 'film',
+    subtitle: 'Streaming, cinema, events',
+  },
+  {
+    category: 'Transport',
+    monthly_limit: 200,
+    icon: 'navigation',
+    subtitle: 'Fuel, transit pass, rideshare',
+  },
+  {
+    category: 'Health & Wellness',
+    monthly_limit: 300,
+    icon: 'activity',
+    subtitle: 'Gym, medical, pharmacy',
+  },
+];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync('zenith.db');
+      const db = await SQLite.openDatabaseAsync('zenith_v2.db');
       await db.execAsync(`
         PRAGMA journal_mode = WAL;
 
@@ -18,11 +56,8 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           category TEXT NOT NULL,
           merchant TEXT NOT NULL,
           note TEXT,
-          tags TEXT,
           date TEXT NOT NULL,
           payment_method TEXT,
-          is_split INTEGER DEFAULT 0,
-          split_count INTEGER DEFAULT 1,
           created_at TEXT NOT NULL
         );
 
@@ -34,10 +69,9 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         );
       `);
 
-      // Initialize default budgets if empty
       const existingBudgets = await db.getAllAsync<{ category: string }>('SELECT category FROM budgets LIMIT 1');
       if (existingBudgets.length === 0) {
-        for (const b of INITIAL_BUDGETS) {
+        for (const b of DEFAULT_BUDGETS) {
           await db.runAsync(
             'INSERT INTO budgets (category, monthly_limit, icon, subtitle) VALUES (?, ?, ?, ?)',
             [b.category, b.monthly_limit, b.icon, b.subtitle]
@@ -66,8 +100,8 @@ export async function insertTransaction(
   const created_at = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO transactions (id, amount, type, category, merchant, note, tags, date, payment_method, is_split, split_count, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO transactions (id, amount, type, category, merchant, note, date, payment_method, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       tx.amount,
@@ -75,11 +109,8 @@ export async function insertTransaction(
       tx.category,
       tx.merchant,
       tx.note || '',
-      tx.tags || '',
       tx.date,
       tx.payment_method || 'Card',
-      tx.is_split ? 1 : 0,
-      tx.split_count || 1,
       created_at,
     ]
   );
@@ -99,34 +130,6 @@ export async function deleteTransaction(id: string): Promise<void> {
 export async function clearAllTransactions(): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM transactions');
-}
-
-export async function loadDemoData(): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync('DELETE FROM transactions');
-
-  for (const item of DEMO_TRANSACTIONS) {
-    const id = `tx_demo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const created_at = item.date;
-    await db.runAsync(
-      `INSERT INTO transactions (id, amount, type, category, merchant, note, tags, date, payment_method, is_split, split_count, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        item.amount,
-        item.type,
-        item.category,
-        item.merchant,
-        item.note || '',
-        item.tags || '',
-        item.date,
-        item.payment_method || 'Card',
-        item.is_split || 0,
-        item.split_count || 1,
-        created_at,
-      ]
-    );
-  }
 }
 
 export async function getBudgets(): Promise<BudgetCategory[]> {

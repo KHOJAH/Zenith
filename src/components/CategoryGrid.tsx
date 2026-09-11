@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
@@ -10,16 +10,15 @@ export interface CategoryOption {
   id: string;
   name: string;
   iconName: string;
-  iconSet: 'feather' | 'ionicons' | 'mci';
 }
 
 export const CATEGORIES: CategoryOption[] = [
-  { id: 'Food & Dining', name: 'Food & Dining', iconName: 'coffee', iconSet: 'feather' },
-  { id: 'Shopping & Tech', name: 'Shopping', iconName: 'shopping-bag', iconSet: 'feather' },
-  { id: 'Groceries', name: 'Groceries', iconName: 'shopping-cart', iconSet: 'feather' },
-  { id: 'Transport', name: 'Transport', iconName: 'navigation', iconSet: 'feather' },
-  { id: 'Bills', name: 'Bills', iconName: 'file-text', iconSet: 'feather' },
-  { id: 'Entertainment', name: 'Entertainment', iconName: 'film', iconSet: 'feather' },
+  { id: 'Food & Dining', name: 'Food & Dining', iconName: 'coffee' },
+  { id: 'Shopping & Tech', name: 'Shopping & Tech', iconName: 'shopping-bag' },
+  { id: 'Housing & Utilities', name: 'Housing & Utilities', iconName: 'home' },
+  { id: 'Entertainment', name: 'Entertainment', iconName: 'film' },
+  { id: 'Transport', name: 'Transport', iconName: 'navigation' },
+  { id: 'Health & Wellness', name: 'Health & Wellness', iconName: 'activity' },
 ];
 
 interface CategoryGridProps {
@@ -48,12 +47,13 @@ export function CategoryGrid({
               styles.card,
               {
                 backgroundColor: isSelected
-                  ? colors.primary
+                  ? isDark
+                    ? colors.secondary
+                    : colors.primary
                   : isDark
                   ? colors.surfaceContainerLow
                   : colors.surface,
-                borderColor: isSelected ? colors.primary : colors.border,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
+                opacity: pressed ? 0.85 : 1,
               },
             ]}
           >
@@ -72,17 +72,29 @@ export function CategoryGrid({
               <Feather
                 name={cat.iconName as any}
                 size={16}
-                color={isSelected ? colors.onPrimary : colors.textSecondary}
+                color={
+                  isSelected
+                    ? isDark
+                      ? '#052E16'
+                      : colors.onPrimary
+                    : colors.textSecondary
+                }
               />
             </View>
 
             <ThemedText
               variant="labelSm"
-              color={isSelected ? colors.onPrimary : colors.text}
+              color={
+                isSelected
+                  ? isDark
+                    ? '#052E16'
+                    : colors.onPrimary
+                  : colors.text
+              }
               numberOfLines={1}
-              style={{ fontWeight: isSelected ? '700' : '500' }}
+              style={{ fontWeight: isSelected ? '700' : '500', flex: 1 }}
             >
-              {cat.name}
+              {cat.name.split(' ')[0]}
             </ThemedText>
           </Pressable>
         );
@@ -105,12 +117,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs + 2,
     borderRadius: radius.md,
-    borderWidth: 1,
     gap: spacing.xs,
   },
   iconWrap: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',

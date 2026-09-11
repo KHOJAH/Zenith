@@ -25,19 +25,25 @@ export function WeeklyBarChart({ weeklyBurn, currency = 'USD' }: WeeklyBarChartP
     { label: 'W3', value: weeklyBurn.week3, isEst: false, isActive: true },
     {
       label: 'W4 (est)',
-      value: weeklyBurn.week4 > 0 ? weeklyBurn.week4 : (weeklyBurn.week1 + weeklyBurn.week2 + weeklyBurn.week3) / 3 || 0,
+      value:
+        weeklyBurn.week4 > 0
+          ? weeklyBurn.week4
+          : (weeklyBurn.week1 + weeklyBurn.week2 + weeklyBurn.week3) / 3 || 0,
       isEst: true,
       isActive: false,
     },
   ];
 
-  const maxVal = Math.max(...data.map((d) => d.value), 100);
+  const maxVal = Math.max(...data.map((d) => d.value), 50);
 
   return (
     <View style={styles.container}>
       <View style={styles.chartRow}>
-        {data.map((item, idx) => {
-          const heightPercent = Math.min(100, Math.max(12, (item.value / maxVal) * 100));
+        {data.map((item) => {
+          const heightPercent =
+            maxVal > 0 && item.value > 0
+              ? Math.min(100, Math.max(14, (item.value / maxVal) * 100))
+              : 8;
 
           return (
             <View key={item.label} style={styles.barColumn}>
@@ -46,7 +52,7 @@ export function WeeklyBarChart({ weeklyBurn, currency = 'USD' }: WeeklyBarChartP
                 color={item.isActive ? colors.primary : colors.textTertiary}
                 style={styles.amountLabel}
               >
-                {item.value > 0 ? `$${Math.round(item.value)}` : '$0'}
+                {formatCurrency(Math.round(item.value), currency)}
               </ThemedText>
 
               <View style={styles.barTrack}>
@@ -111,6 +117,7 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     marginBottom: spacing.xs,
+    fontSize: 10,
   },
   barTrack: {
     width: '100%',

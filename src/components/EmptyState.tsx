@@ -12,15 +12,13 @@ interface EmptyStateProps {
   description?: string;
   onAction?: () => void;
   actionTitle?: string;
-  onLoadDemo?: () => void;
 }
 
 export function EmptyState({
   title = 'No transactions recorded',
-  description = 'Start tracking your cashflow with the tactile quick-add keypad.',
+  description = 'Start tracking your expenses with the tactile quick-add keypad.',
   onAction,
   actionTitle = 'Log First Expense',
-  onLoadDemo,
 }: EmptyStateProps) {
   const { colors } = useTheme();
 
@@ -32,7 +30,7 @@ export function EmptyState({
           { backgroundColor: colors.surfaceContainerLow },
         ]}
       >
-        <Feather name="inbox" size={32} color={colors.textSecondary} />
+        <Feather name="inbox" size={30} color={colors.textSecondary} />
       </View>
 
       <ThemedText variant="headlineSm" style={styles.title}>
@@ -46,8 +44,8 @@ export function EmptyState({
         {description}
       </ThemedText>
 
-      <View style={styles.buttonGroup}>
-        {onAction && (
+      {onAction && (
+        <View style={styles.buttonGroup}>
           <Button
             title={actionTitle}
             size="md"
@@ -55,18 +53,8 @@ export function EmptyState({
             onPress={onAction}
             icon={<Feather name="plus" size={16} color={colors.onPrimary} />}
           />
-        )}
-
-        {onLoadDemo && (
-          <Button
-            title="Load Sample Demo Data"
-            size="sm"
-            variant="outline"
-            onPress={onLoadDemo}
-            icon={<Feather name="download-cloud" size={14} color={colors.text} />}
-          />
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -75,12 +63,12 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
   },
   iconWrap: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -93,13 +81,11 @@ const styles = StyleSheet.create({
   description: {
     textAlign: 'center',
     maxWidth: 280,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     lineHeight: 18,
   },
   buttonGroup: {
-    flexDirection: 'column',
-    gap: spacing.sm,
     width: '100%',
-    maxWidth: 240,
+    maxWidth: 220,
   },
 });

@@ -6,10 +6,10 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, getCurrentMonthName } from '@/utils/formatters';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { ThemedText } from '@/components/ThemedText';
@@ -26,10 +26,8 @@ export default function AnalyticsScreen() {
   const { colors, isDark } = useTheme();
   const {
     transactions,
-    budgets,
     analytics,
     currency,
-    populateDemoData,
   } = useTransactions();
 
   const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
@@ -37,7 +35,7 @@ export default function AnalyticsScreen() {
   const handleExport = () => {
     Alert.alert(
       'Export Statement',
-      'Your October PDF & CSV statement report has been compiled successfully.',
+      `Your ${getCurrentMonthName()} financial summary statement has been prepared.`,
       [{ text: 'OK' }]
     );
   };
@@ -61,6 +59,17 @@ export default function AnalyticsScreen() {
     }
   };
 
+  // Dynamic real data insight
+  const topCategory = analytics.categorySummaries.reduce(
+    (max, cat) => (cat.spent > max.spent ? cat : max),
+    analytics.categorySummaries[0]
+  );
+
+  const savingsRate =
+    analytics.totalIncome > 0
+      ? Math.max(0, Math.round((analytics.netSavings / analytics.totalIncome) * 100))
+      : 0;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title="Zenith" subtitle="Analytics" />
@@ -69,7 +78,7 @@ export default function AnalyticsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Interactive Period Pill Control */}
+        {/* Interactive Period Selector */}
         <View
           style={[
             styles.periodSelector,
@@ -108,19 +117,18 @@ export default function AnalyticsScreen() {
         </View>
 
         {transactions.length === 0 ? (
-          <Card padding="lg">
+          <Card padding="lg" bordered={false}>
             <EmptyState
               title="No Analytics Available"
               description="Analytics and burn rate models need transactions to project your cash velocity."
               onAction={() => router.push('/(tabs)/quick-add')}
               actionTitle="Log Transaction"
-              onLoadDemo={populateDemoData}
             />
           </Card>
         ) : (
           <>
-            {/* Smart Velocity Insight Card */}
-            <Card padding="md" style={styles.insightCard}>
+            {/* Dynamic Real Insight Card */}
+            <Card padding="md" style={styles.insightCard} bordered={false}>
               <View style={styles.insightHeader}>
                 <View
                   style={[
@@ -138,40 +146,40 @@ export default function AnalyticsScreen() {
                       color={colors.secondary}
                       style={{ fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}
                     >
-                      Smart Velocity Insight
+                      Real Velocity Insight
                     </ThemedText>
                     <View style={[styles.pulseDot, { backgroundColor: colors.secondary }]} />
                   </View>
 
                   <ThemedText variant="bodyMd" style={{ marginTop: spacing.xxs, lineHeight: 20 }}>
-                    You spent{' '}
-                    <ThemedText variant="bodyMd" color={colors.secondary} style={{ fontWeight: '700' }}>
-                      14% less
-                    </ThemedText>{' '}
-                    on Dining out than last month. You're on track to route an extra{' '}
-                    <ThemedText variant="bodyMd" style={{ fontWeight: '700' }}>
-                      $120.00
-                    </ThemedText>{' '}
-                    into High-Yield Savings!
+                    {topCategory && topCategory.spent > 0 ? (
+                      <>
+                        Your highest spending category is{' '}
+                        <ThemedText variant="bodyMd" color={colors.secondary} style={{ fontWeight: '700' }}>
+                          {topCategory.category}
+                        </ThemedText>{' '}
+                        at {formatCurrency(topCategory.spent, currency)} ({Math.round(topCategory.percentage)}% of cap). You have{' '}
+                        <ThemedText variant="bodyMd" style={{ fontWeight: '700' }}>
+                          {formatCurrency(analytics.budgetRemaining, currency)}
+                        </ThemedText>{' '}
+                        budget remaining this month.
+                      </>
+                    ) : (
+                      <>
+                        You are maintaining healthy pacing with{' '}
+                        <ThemedText variant="bodyMd" color={colors.secondary} style={{ fontWeight: '700' }}>
+                          {formatCurrency(analytics.dailyVelocity, currency)}/day
+                        </ThemedText>{' '}
+                        daily burn rate.
+                      </>
+                    )}
                   </ThemedText>
                 </View>
-              </View>
-
-              <View style={styles.insightFooter}>
-                <Pressable
-                  onPress={() => Alert.alert('Allocated', '$120.00 routed to Savings.')}
-                  style={styles.allocateBtn}
-                >
-                  <ThemedText variant="labelMd" color={colors.secondary} style={{ fontWeight: '700' }}>
-                    Allocate $120.00
-                  </ThemedText>
-                  <Feather name="arrow-right" size={14} color={colors.secondary} />
-                </Pressable>
               </View>
             </Card>
 
             {/* Central Intelligence Donut Ring Hero */}
-            <Card padding="lg" style={styles.donutCard}>
+            <Card padding="lg" style={styles.donutCard} bordered={false}>
               <View style={styles.donutHeader}>
                 <View>
                   <ThemedText
@@ -179,7 +187,7 @@ export default function AnalyticsScreen() {
                     color={colors.textSecondary}
                     style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
                   >
-                    Total Monthly Cap
+                    Monthly Budget Ceiling
                   </ThemedText>
                   <ThemedText variant="headlineSm">Budget Health</ThemedText>
                 </View>
@@ -210,7 +218,7 @@ export default function AnalyticsScreen() {
             </Card>
 
             {/* Weekly Run Rate Comparison Bar Chart */}
-            <Card padding="md" style={styles.runRateCard}>
+            <Card padding="md" style={styles.runRateCard} bordered={false}>
               <View style={styles.runRateHeader}>
                 <View>
                   <ThemedText
@@ -225,7 +233,7 @@ export default function AnalyticsScreen() {
 
                 <View style={{ alignItems: 'flex-end' }}>
                   <ThemedText variant="labelMd" color={colors.secondary} style={{ fontWeight: '700' }}>
-                    Under Budget
+                    {analytics.budgetRemaining > 0 ? 'Under Budget' : 'Cap Reached'}
                   </ThemedText>
                   <ThemedText variant="bodySm" color={colors.textTertiary}>
                     {formatCurrency(analytics.budgetRemaining, currency)} remaining
@@ -236,13 +244,12 @@ export default function AnalyticsScreen() {
               <WeeklyBarChart weeklyBurn={analytics.weeklyBurn} currency={currency} />
             </Card>
 
-            {/* Fiscal Harmony Editorial Banner */}
+            {/* Fiscal Performance Banner */}
             <View
               style={[
                 styles.editorialBanner,
                 {
                   backgroundColor: isDark ? '#161D2B' : '#0F172A',
-                  borderColor: isDark ? '#2D3748' : '#1E293B',
                 },
               ]}
             >
@@ -252,13 +259,13 @@ export default function AnalyticsScreen() {
                   color="#10B981"
                   style={{ textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '700' }}
                 >
-                  Fiscal Harmony
+                  Monthly Savings Rate
                 </ThemedText>
                 <ThemedText variant="headlineSm" color="#FFFFFF" style={{ marginTop: 2 }}>
-                  37% Saved This Quarter
+                  {savingsRate}% Saved This Month
                 </ThemedText>
                 <ThemedText variant="bodySm" color="rgba(255,255,255,0.7)">
-                  You're outperforming 82% of peers.
+                  Net cash retained: {formatCurrency(analytics.netSavings, currency)}
                 </ThemedText>
               </View>
 
@@ -287,7 +294,7 @@ export default function AnalyticsScreen() {
                   const isNearLimit = cat.percentage >= 90;
 
                   return (
-                    <Card key={cat.category} padding="md" style={styles.categoryCard}>
+                    <Card key={cat.category} padding="md" style={styles.categoryCard} bordered={false}>
                       <View style={styles.catTopRow}>
                         <View style={styles.catLeft}>
                           <View
@@ -375,7 +382,7 @@ export default function AnalyticsScreen() {
             {/* Export Statement CTA */}
             <View style={{ marginTop: spacing.xs, marginBottom: spacing.lg }}>
               <Button
-                title="Export Detailed PDF Statement"
+                title="Export Detailed Statement"
                 variant="outline"
                 size="md"
                 onPress={handleExport}
@@ -436,17 +443,6 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-  insightFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: spacing.xs,
-  },
-  allocateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 2,
-  },
   donutCard: {
     gap: spacing.md,
   },
@@ -477,7 +473,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.md,
     borderRadius: radius.xl,
-    borderWidth: 1,
   },
   bannerIconWrap: {
     width: 44,

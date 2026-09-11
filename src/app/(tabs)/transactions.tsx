@@ -8,11 +8,11 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
 import { Transaction } from '@/db/schema';
-import { formatCurrency, formatDateGroup } from '@/utils/formatters';
+import { formatCurrency, formatDateGroup, getCurrentMonthName } from '@/utils/formatters';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { ThemedText } from '@/components/ThemedText';
@@ -24,10 +24,10 @@ const FILTER_CATEGORIES = [
   'All',
   'Food & Dining',
   'Shopping & Tech',
+  'Housing & Utilities',
   'Entertainment',
   'Transport',
   'Health & Wellness',
-  'Housing & Utilities',
   'Income',
 ];
 
@@ -39,19 +39,17 @@ export default function TransactionsScreen() {
     analytics,
     currency,
     deleteTransaction,
-    populateDemoData,
   } = useTransactions();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Filtered transactions
+  // Filter transactions
   const filtered = useMemo(() => {
     return transactions.filter((tx) => {
       const matchCat =
         selectedCategory === 'All' ||
-        tx.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-        (selectedCategory === 'Food & Dining' && (tx.category.includes('Food') || tx.category.includes('Dining') || tx.category.includes('Groceries')));
+        tx.category.toLowerCase() === selectedCategory.toLowerCase();
 
       const q = searchQuery.trim().toLowerCase();
       const matchQuery =
@@ -59,7 +57,6 @@ export default function TransactionsScreen() {
         tx.merchant.toLowerCase().includes(q) ||
         tx.category.toLowerCase().includes(q) ||
         (tx.note && tx.note.toLowerCase().includes(q)) ||
-        (tx.tags && tx.tags.toLowerCase().includes(q)) ||
         tx.amount.toString().includes(q);
 
       return matchCat && matchQuery;
@@ -93,7 +90,7 @@ export default function TransactionsScreen() {
   const handleDelete = (id: string, merchant: string) => {
     Alert.alert(
       'Delete Transaction',
-      `Are you sure you want to remove "${merchant}"?`,
+      `Delete "${merchant}" from your records?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -128,7 +125,7 @@ export default function TransactionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="Zenith" subtitle="Transactions" />
+      <Header title="Zenith" subtitle="Ledger" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -140,7 +137,6 @@ export default function TransactionsScreen() {
             styles.spendInsightCard,
             {
               backgroundColor: isDark ? '#131A29' : '#131B2E',
-              borderColor: isDark ? '#28334B' : '#1E293B',
             },
           ]}
         >
@@ -152,13 +148,13 @@ export default function TransactionsScreen() {
                 color="#DAE2FD"
                 style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}
               >
-                October Overview
+                {getCurrentMonthName()} Overview
               </ThemedText>
             </View>
 
             <View style={styles.trackedBadge}>
               <ThemedText variant="labelSm" color="#FFFFFF">
-                {analytics.daysPassed} Days Tracked
+                {analytics.daysPassed} Days In
               </ThemedText>
             </View>
           </View>
@@ -166,7 +162,7 @@ export default function TransactionsScreen() {
           <View style={styles.spendInsightBottom}>
             <View>
               <ThemedText variant="bodySm" color="rgba(255,255,255,0.7)">
-                October Spend
+                Current Spend
               </ThemedText>
               <ThemedText
                 variant="displayHeroSm"
@@ -179,7 +175,7 @@ export default function TransactionsScreen() {
 
             <View style={{ alignItems: 'flex-end' }}>
               <ThemedText variant="bodySm" color="rgba(255,255,255,0.7)">
-                Pace
+                Burn Pace
               </ThemedText>
               <ThemedText
                 variant="headlineSm"
@@ -216,7 +212,7 @@ export default function TransactionsScreen() {
                 styles.searchInput,
                 { color: colors.text },
               ]}
-              placeholder="Search merchant, tag, or amount..."
+              placeholder="Search by payee, note, amount..."
               placeholderTextColor={colors.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -248,14 +244,7 @@ export default function TransactionsScreen() {
                       ? isDark
                         ? colors.secondary
                         : colors.primary
-                      : isDark
-                      ? colors.surfaceContainerLow
                       : colors.surfaceContainerLow,
-                    borderColor: isSelected
-                      ? isDark
-                        ? colors.secondary
-                        : colors.primary
-                      : colors.border,
                     opacity: pressed ? 0.8 : 1,
                   },
                 ]}
@@ -280,25 +269,24 @@ export default function TransactionsScreen() {
 
         {/* Transactions Feed Groups */}
         {transactions.length === 0 ? (
-          <Card padding="lg">
+          <Card padding="lg" bordered={false}>
             <EmptyState
-              title="Ledger is Clean"
-              description="You have no recorded expenses or payouts yet. Tap below to log one or load demo records."
+              title="No Transactions Yet"
+              description="Your ledger is completely clean. Tap below to log an expense or income."
               onAction={() => router.push('/(tabs)/quick-add')}
-              actionTitle="Add Transaction"
-              onLoadDemo={populateDemoData}
+              actionTitle="Log First Transaction"
             />
           </Card>
         ) : filtered.length === 0 ? (
-          <Card padding="lg">
+          <Card padding="lg" bordered={false}>
             <EmptyState
-              title="No transactions found"
-              description="Try adjusting your search terms or clearing your category filters."
+              title="No Matching Records"
+              description="No transactions found matching your search. Try changing your search query or category filter."
               onAction={() => {
                 setSearchQuery('');
                 setSelectedCategory('All');
               }}
-              actionTitle="Reset Filters"
+              actionTitle="Reset Filter"
             />
           </Card>
         ) : (
@@ -315,12 +303,14 @@ export default function TransactionsScreen() {
                     color={group.netTotal >= 0 ? colors.secondary : colors.textSecondary}
                     style={{ fontWeight: '600' }}
                   >
-                    {group.netTotal >= 0 ? `+${formatCurrency(group.netTotal, currency)} Net` : `-${formatCurrency(Math.abs(group.netTotal), currency)}`}
+                    {group.netTotal >= 0
+                      ? `+${formatCurrency(group.netTotal, currency)} Net`
+                      : `-${formatCurrency(Math.abs(group.netTotal), currency)}`}
                   </ThemedText>
                 </View>
 
                 {/* Items in date group */}
-                <Card padding="xs" style={styles.groupCard}>
+                <Card padding="xs" style={styles.groupCard} bordered={false}>
                   {group.items.map((tx, idx) => {
                     const isExpense = tx.type === 'expense';
                     const isLast = idx === group.items.length - 1;
@@ -333,7 +323,7 @@ export default function TransactionsScreen() {
                           styles.itemRow,
                           {
                             borderBottomColor: colors.border,
-                            borderBottomWidth: isLast ? 0 : 1,
+                            borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
                             backgroundColor: pressed
                               ? colors.surfaceContainerLow
                               : 'transparent',
@@ -369,36 +359,33 @@ export default function TransactionsScreen() {
                                 color={isExpense ? colors.text : colors.secondary}
                                 style={{ fontWeight: '700', marginLeft: spacing.xs }}
                               >
-                                {isExpense ? `-${formatCurrency(tx.amount, currency)}` : `+${formatCurrency(tx.amount, currency)}`}
+                                {isExpense
+                                  ? `-${formatCurrency(tx.amount, currency)}`
+                                  : `+${formatCurrency(tx.amount, currency)}`}
                               </ThemedText>
                             </View>
 
-                            {/* Tags & Metadata */}
-                            <View style={styles.tagsLine}>
+                            <View style={styles.metaLine}>
                               <ThemedText variant="bodySm" color={colors.textSecondary}>
                                 {tx.category}
                               </ThemedText>
                               <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
-                              <ThemedText variant="bodySm" color={colors.textSecondary}>
+                              <ThemedText variant="bodySm" color={colors.textTertiary}>
                                 {tx.payment_method || 'Card'}
                               </ThemedText>
-
-                              {tx.is_split === 1 && (
-                                <View style={[styles.inlineBadge, { backgroundColor: colors.surfaceContainer }]}>
-                                  <Feather name="users" size={10} color={colors.textSecondary} />
-                                  <ThemedText variant="labelSm" color={colors.textSecondary}>
-                                    Split {tx.split_count ? `${tx.split_count}p` : '50/50'}
+                              {tx.note ? (
+                                <>
+                                  <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                                  <ThemedText
+                                    variant="bodySm"
+                                    color={colors.textTertiary}
+                                    numberOfLines={1}
+                                    style={{ flex: 1 }}
+                                  >
+                                    {tx.note}
                                   </ThemedText>
-                                </View>
-                              )}
-
-                              {tx.tags && tx.tags.includes('#work') && (
-                                <View style={[styles.inlineBadge, { backgroundColor: isDark ? '#243048' : '#D3E4FE' }]}>
-                                  <ThemedText variant="labelSm" color={isDark ? '#93C5FD' : '#1D4ED8'}>
-                                    Work
-                                  </ThemedText>
-                                </View>
-                              )}
+                                </>
+                              ) : null}
                             </View>
                           </View>
                         </View>
@@ -427,7 +414,6 @@ const styles = StyleSheet.create({
   spendInsightCard: {
     borderRadius: radius.xl,
     padding: spacing.lg,
-    borderWidth: 1,
     overflow: 'hidden',
   },
   spendInsightTop: {
@@ -478,7 +464,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs + 2,
     paddingHorizontal: spacing.md,
     borderRadius: radius.full,
-    borderWidth: 1,
   },
   groupsContainer: {
     gap: spacing.md,
@@ -515,24 +500,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  tagsLine: {
+  metaLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     marginTop: 3,
-    flexWrap: 'wrap',
   },
   metaDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-  },
-  inlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingVertical: 1,
-    paddingHorizontal: 6,
-    borderRadius: 4,
   },
 });

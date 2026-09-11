@@ -15,7 +15,6 @@ interface TransactionContextType {
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at'>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
-  populateDemoData: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -64,11 +63,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     await refresh();
   };
 
-  const populateDemoData = async () => {
-    await db.loadDemoData();
-    await refresh();
-  };
-
   const toggleBalanceVisibility = () => {
     setIsBalanceHidden((prev) => !prev);
   };
@@ -89,7 +83,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         addTransaction,
         deleteTransaction,
         clearAll,
-        populateDemoData,
         refresh,
       }}
     >
