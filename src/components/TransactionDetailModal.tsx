@@ -242,22 +242,24 @@ export function TransactionDetailModal({
               </ThemedText>
             </View>
 
-            {/* Payment Method */}
-            <View style={[styles.detailRow, { borderBottomColor: colors.border }]}>
-              <ThemedText variant="bodySm" color={colors.textSecondary}>
-                Payment Method
-              </ThemedText>
-              <View style={styles.methodInline}>
-                <Feather
-                  name={transaction.payment_method === 'Cash' ? 'dollar-sign' : 'credit-card'}
-                  size={14}
-                  color={colors.text}
-                />
-                <ThemedText variant="labelMd" style={{ fontWeight: '600' }}>
-                  {transaction.payment_method || 'Card'}
+            {/* Payment Method (Expenses only) */}
+            {transaction.type !== 'income' && transaction.payment_method ? (
+              <View style={[styles.detailRow, { borderBottomColor: colors.border }]}>
+                <ThemedText variant="bodySm" color={colors.textSecondary}>
+                  Payment Method
                 </ThemedText>
+                <View style={styles.methodInline}>
+                  <Feather
+                    name={transaction.payment_method === 'Cash' ? 'dollar-sign' : 'credit-card'}
+                    size={14}
+                    color={colors.text}
+                  />
+                  <ThemedText variant="labelMd" style={{ fontWeight: '600' }}>
+                    {transaction.payment_method}
+                  </ThemedText>
+                </View>
               </View>
-            </View>
+            ) : null}
 
             {/* Note */}
             {transaction.note ? (

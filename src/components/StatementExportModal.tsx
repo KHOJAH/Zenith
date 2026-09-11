@@ -70,7 +70,7 @@ export function StatementExportModal({
         `"${tx.currency || 'USD'}"`,
         converted.toFixed(2),
         `"${currency}"`,
-        `"${tx.payment_method || 'Card'}"`,
+        `"${tx.type === 'income' ? '' : (tx.payment_method || 'Card')}"`,
         `"${cleanNote}"`,
       ].join(',');
     });
@@ -311,7 +311,8 @@ export function StatementExportModal({
                           {tx.category}
                         </ThemedText>
                         <ThemedText variant="bodySm" color={colors.textTertiary}>
-                          {formatDateGroup(tx.date)} · {tx.payment_method || 'Card'}
+                          {formatDateGroup(tx.date)}
+                          {isExpense && tx.payment_method ? ` · ${tx.payment_method}` : ''}
                         </ThemedText>
                       </View>
                       <ThemedText

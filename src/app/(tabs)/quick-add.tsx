@@ -107,7 +107,7 @@ export default function QuickAddScreen() {
         merchant: flowType === 'income' ? 'Income' : category,
         note: note.trim(),
         date: selectedDate.toISOString(),
-        payment_method: paymentMethod,
+        payment_method: flowType === 'income' ? undefined : paymentMethod,
       });
 
       try {
@@ -426,69 +426,71 @@ export default function QuickAddScreen() {
             </View>
           </View>
 
-          {/* Payment Method Selector (Card & Cash) */}
-          <View style={styles.sectionBlock}>
-            <ThemedText
-              variant="labelSm"
-              color={colors.textSecondary}
-              style={styles.sectionHeader}
-            >
-              PAYMENT METHOD
-            </ThemedText>
+          {/* Payment Method Selector (Card & Cash) - Expenses only */}
+          {flowType !== 'income' && (
+            <View style={styles.sectionBlock}>
+              <ThemedText
+                variant="labelSm"
+                color={colors.textSecondary}
+                style={styles.sectionHeader}
+              >
+                PAYMENT METHOD
+              </ThemedText>
 
-            <View style={styles.paymentMethodRow}>
-              {PAYMENT_METHODS.map((method) => {
-                const isSelected = paymentMethod === method;
-                return (
-                  <Pressable
-                    key={method}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    onPress={() => {
-                      try { Haptics.selectionAsync(); } catch {}
-                      setPaymentMethod(method);
-                    }}
-                    style={({ pressed }) => [
-                      styles.methodPill,
-                      {
-                        backgroundColor: isSelected
-                          ? isDark
-                            ? colors.secondary
-                            : colors.primary
-                          : colors.surfaceContainerLow,
-                        transform: [{ scale: pressed ? 0.95 : 1 }],
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name={method === 'Card' ? 'credit-card' : 'dollar-sign'}
-                      size={16}
-                      color={
-                        isSelected
-                          ? isDark
-                            ? '#052E16'
-                            : colors.onPrimary
-                          : colors.textSecondary
-                      }
-                    />
-                    <ThemedText
-                      variant="labelMd"
-                      color={
-                        isSelected
-                          ? isDark
-                            ? '#052E16'
-                            : colors.onPrimary
-                          : colors.textSecondary
-                      }
-                      style={{ fontWeight: isSelected ? '700' : '500' }}
+              <View style={styles.paymentMethodRow}>
+                {PAYMENT_METHODS.map((method) => {
+                  const isSelected = paymentMethod === method;
+                  return (
+                    <Pressable
+                      key={method}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      onPress={() => {
+                        try { Haptics.selectionAsync(); } catch {}
+                        setPaymentMethod(method);
+                      }}
+                      style={({ pressed }) => [
+                        styles.methodPill,
+                        {
+                          backgroundColor: isSelected
+                            ? isDark
+                              ? colors.secondary
+                              : colors.primary
+                            : colors.surfaceContainerLow,
+                          transform: [{ scale: pressed ? 0.95 : 1 }],
+                        },
+                      ]}
                     >
-                      {method}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
+                      <Feather
+                        name={method === 'Card' ? 'credit-card' : 'dollar-sign'}
+                        size={16}
+                        color={
+                          isSelected
+                            ? isDark
+                              ? '#052E16'
+                              : colors.onPrimary
+                            : colors.textSecondary
+                        }
+                      />
+                      <ThemedText
+                        variant="labelMd"
+                        color={
+                          isSelected
+                            ? isDark
+                              ? '#052E16'
+                              : colors.onPrimary
+                            : colors.textSecondary
+                        }
+                        style={{ fontWeight: isSelected ? '700' : '500' }}
+                      >
+                        {method}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Optional Note */}
           <Card padding="sm" style={styles.noteCard} bordered={false}>

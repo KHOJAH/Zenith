@@ -87,8 +87,9 @@ function CategoryChip({
                 : colors.onPrimary
               : colors.text
           }
-          numberOfLines={2}
-          style={{ fontWeight: isSelected ? '700' : '500', flex: 1, fontSize: 11 }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{ fontWeight: isSelected ? '700' : '600', flex: 1, fontSize: 12 }}
         >
           {category}
         </ThemedText>
@@ -127,21 +128,21 @@ export function CategoryGrid({
       {/* Add Custom Category Button */}
       {onAddNewCategory && (
         <View style={styles.cardWrapper}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add Category"
-              onPress={onAddNewCategory}
-              style={({ pressed }) => [
-                styles.card,
-                styles.addCard,
-                {
-                  backgroundColor: colors.surfaceContainerLow,
-                  borderColor: colors.borderStrong,
-                  opacity: pressed ? 0.8 : 1,
-                  transform: [{ scale: pressed ? 0.95 : 1 }],
-                },
-              ]}
-            >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add Category"
+            onPress={onAddNewCategory}
+            style={({ pressed }) => [
+              styles.card,
+              styles.addCard,
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                borderColor: colors.borderStrong,
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.95 : 1 }],
+              },
+            ]}
+          >
             <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainer }]}>
               <Feather name="plus" size={16} color={colors.secondary} />
             </View>
@@ -164,21 +165,21 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: spacing.xs + 2,
   },
   cardWrapper: {
-    width: '31.8%',
+    width: '48.5%',
   },
   card: {
     width: '100%',
-    minHeight: 44,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.xs + 2,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
     borderCurve: 'continuous',
-    gap: spacing.xs,
+    gap: spacing.xs + 2,
   },
   addCard: {
     borderWidth: 1,

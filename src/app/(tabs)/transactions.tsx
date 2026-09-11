@@ -451,10 +451,14 @@ export default function TransactionsScreen() {
                               </View>
 
                               <View style={styles.metaLine}>
-                                <ThemedText variant="bodySm" color={colors.textSecondary}>
-                                  {tx.payment_method || 'Card'}
-                                </ThemedText>
-                                <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                                {isExpense && tx.payment_method ? (
+                                  <>
+                                    <ThemedText variant="bodySm" color={colors.textSecondary}>
+                                      {tx.payment_method}
+                                    </ThemedText>
+                                    <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                                  </>
+                                ) : null}
                                 <ThemedText variant="bodySm" color={colors.textTertiary}>
                                   {formatDateGroup(tx.date)}
                                 </ThemedText>
