@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Modal,
   View,
   Pressable,
   StyleSheet,
   ScrollView,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { useTheme } from '@/context/ThemeContext';
-import { DateInterval } from '@/db/schema';
-import { ThemedText } from './ThemedText';
-import { Button } from './Button';
-import { spacing } from '@/theme/spacing';
-import { radius } from '@/theme/radius';
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useTheme } from "@/context/ThemeContext";
+import { DateInterval } from "@/db/schema";
+import { ThemedText } from "./ThemedText";
+import { Button } from "./Button";
+import { spacing } from "@/theme/spacing";
+import { radius } from "@/theme/radius";
+import { CalendarPicker } from "./CalendarPicker";
 
 interface DateIntervalModalProps {
   visible: boolean;
@@ -23,8 +24,8 @@ interface DateIntervalModalProps {
 }
 
 const MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
 
 function formatDateDisplay(d: Date): string {
@@ -39,7 +40,7 @@ export function DateIntervalModal({
 }: DateIntervalModalProps) {
   const { colors, isDark } = useTheme();
 
-  const [selectedType, setSelectedType] = useState<DateInterval['id']>(currentInterval.id);
+  const [selectedType, setSelectedType] = useState<DateInterval["id"]>(currentInterval.id);
 
   // Custom start and end dates state
   const [customStart, setCustomStart] = useState<Date>(
@@ -49,12 +50,12 @@ export function DateIntervalModal({
     new Date(currentInterval.endDate)
   );
 
-  const getPresets = (): { id: DateInterval['id']; label: string; sublabel: string; getDates: () => { start: Date; end: Date } }[] => {
+  const getPresets = (): { id: DateInterval["id"]; label: string; sublabel: string; getDates: () => { start: Date; end: Date } }[] => {
     const now = new Date();
     return [
       {
-        id: 'current_month',
-        label: 'This Month',
+        id: "current_month",
+        label: "This Month",
         sublabel: `${MONTH_NAMES[now.getMonth()]} 1 – ${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`,
         getDates: () => ({
           start: new Date(now.getFullYear(), now.getMonth(), 1),
@@ -62,9 +63,9 @@ export function DateIntervalModal({
         }),
       },
       {
-        id: 'last_30_days',
-        label: 'Last 30 Days',
-        sublabel: 'Past 30 rolling days',
+        id: "last_30_days",
+        label: "Last 30 Days",
+        sublabel: "Past 30 rolling days",
         getDates: () => {
           const s = new Date(now);
           s.setDate(now.getDate() - 30);
@@ -72,9 +73,9 @@ export function DateIntervalModal({
         },
       },
       {
-        id: 'last_7_days',
-        label: 'Last 7 Days',
-        sublabel: 'Past week',
+        id: "last_7_days",
+        label: "Last 7 Days",
+        sublabel: "Past week",
         getDates: () => {
           const s = new Date(now);
           s.setDate(now.getDate() - 7);
@@ -82,15 +83,15 @@ export function DateIntervalModal({
         },
       },
       {
-        id: 'custom',
-        label: 'Custom Range',
-        sublabel: 'Specify exact start & end dates',
+        id: "custom",
+        label: "Custom Range",
+        sublabel: "Tap start and end dates on calendar",
         getDates: () => ({ start: customStart, end: customEnd }),
       },
     ];
   };
 
-  const isCustomInvalid = selectedType === 'custom' && customStart.getTime() > customEnd.getTime();
+  const isCustomInvalid = selectedType === "custom" && customStart.getTime() > customEnd.getTime();
 
   const handleApply = () => {
     if (isCustomInvalid) return;
@@ -105,10 +106,10 @@ export function DateIntervalModal({
     if (activePreset) {
       const dates = activePreset.getDates();
       let label = activePreset.label;
-      if (selectedType === 'current_month') {
+      if (selectedType === "current_month") {
         const now = new Date();
-        label = now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      } else if (selectedType === 'custom') {
+        label = now.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      } else if (selectedType === "custom") {
         label = `${customStart.getDate()} ${MONTH_NAMES[customStart.getMonth()]} – ${customEnd.getDate()} ${MONTH_NAMES[customEnd.getMonth()]}`;
       }
 
@@ -121,43 +122,6 @@ export function DateIntervalModal({
     }
 
     onClose();
-  };
-
-  // Adjust date helpers
-  const adjustStartDate = (daysDelta: number) => {
-    setCustomStart((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + daysDelta);
-      if (next > customEnd) return prev;
-      return next;
-    });
-  };
-
-  const adjustEndDate = (daysDelta: number) => {
-    setCustomEnd((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + daysDelta);
-      if (next < customStart) return prev;
-      return next;
-    });
-  };
-
-  const adjustStartMonth = (monthsDelta: number) => {
-    setCustomStart((prev) => {
-      const next = new Date(prev);
-      next.setMonth(next.getMonth() + monthsDelta);
-      if (next > customEnd) return prev;
-      return next;
-    });
-  };
-
-  const adjustEndMonth = (monthsDelta: number) => {
-    setCustomEnd((prev) => {
-      const next = new Date(prev);
-      next.setMonth(next.getMonth() + monthsDelta);
-      if (next < customStart) return prev;
-      return next;
-    });
   };
 
   return (
@@ -218,7 +182,7 @@ export function DateIntervalModal({
                     {
                       backgroundColor: isSelected
                         ? colors.surfaceContainerLow
-                        : 'transparent',
+                        : "transparent",
                       borderColor: isSelected
                         ? colors.borderStrong
                         : colors.border,
@@ -253,7 +217,7 @@ export function DateIntervalModal({
                       )}
                     </View>
                     <View>
-                      <ThemedText variant="labelMd" style={{ fontWeight: isSelected ? '700' : '500' }}>
+                      <ThemedText variant="labelMd" style={{ fontWeight: isSelected ? "700" : "500" }}>
                         {item.label}
                       </ThemedText>
                       <ThemedText variant="bodySm" color={colors.textSecondary}>
@@ -266,7 +230,7 @@ export function DateIntervalModal({
             })}
 
             {/* Custom Date Pickers when Custom Range is active */}
-            {selectedType === 'custom' && (
+            {selectedType === "custom" && (
               <View
                 style={[
                   styles.customContainer,
@@ -278,113 +242,49 @@ export function DateIntervalModal({
                   color={colors.textSecondary}
                   style={styles.customSectionTitle}
                 >
-                  CUSTOM INTERVAL CONTROLS
+                  TAP-TO-RANGE CALENDAR
                 </ThemedText>
 
-                {/* Start Date Selector */}
-                <View style={styles.dateBlock}>
-                  <ThemedText variant="labelSm" color={colors.textSecondary}>
-                    Start Date:
-                  </ThemedText>
-                  <View style={styles.dateControlRow}>
-                    <ThemedText variant="labelMd" style={{ fontWeight: '700', flex: 1 }}>
+                {/* Range summary badges */}
+                <View style={styles.rangeBadgesRow}>
+                  <View style={[styles.rangeBadge, { backgroundColor: colors.surface }]}>
+                    <ThemedText variant="labelSm" color={colors.textSecondary}>
+                      START
+                    </ThemedText>
+                    <ThemedText variant="labelMd" style={{ fontWeight: "700" }}>
                       {formatDateDisplay(customStart)}
                     </ThemedText>
-                    <View style={styles.stepperGroup}>
-                      <Pressable
-                        onPress={() => adjustStartDate(-1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">-1d</ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => adjustStartDate(1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">+1d</ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => adjustStartMonth(-1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">-1m</ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => adjustStartMonth(1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">+1m</ThemedText>
-                      </Pressable>
-                    </View>
+                  </View>
+
+                  <Feather name="arrow-right" size={16} color={colors.textTertiary} />
+
+                  <View style={[styles.rangeBadge, { backgroundColor: colors.surface }]}>
+                    <ThemedText variant="labelSm" color={colors.textSecondary}>
+                      END
+                    </ThemedText>
+                    <ThemedText variant="labelMd" style={{ fontWeight: "700" }}>
+                      {formatDateDisplay(customEnd)}
+                    </ThemedText>
                   </View>
                 </View>
 
-                {/* End Date Selector */}
-                <View style={[styles.dateBlock, { marginTop: spacing.xs }]}>
-                  <ThemedText variant="labelSm" color={colors.textSecondary}>
-                    End Date:
-                  </ThemedText>
-                  <View style={styles.dateControlRow}>
-                    <ThemedText variant="labelMd" style={{ fontWeight: '700', flex: 1 }}>
-                      {formatDateDisplay(customEnd)}
-                    </ThemedText>
-                    <View style={styles.stepperGroup}>
-                      <Pressable
-                        onPress={() => adjustEndDate(-1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">-1d</ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => adjustEndDate(1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">+1d</ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => adjustEndMonth(-1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">-1m</ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => adjustEndMonth(1)}
-                        style={({ pressed }) => [
-                          styles.stepBtn,
-                          { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
-                        ]}
-                      >
-                        <ThemedText variant="labelSm">+1m</ThemedText>
-                      </Pressable>
-                    </View>
-                  </View>
+                {/* Calendar Range Picker */}
+                <View style={[styles.calendarCardWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <CalendarPicker
+                    mode="range"
+                    startDate={customStart}
+                    endDate={customEnd}
+                    onSelectRange={(start, end) => {
+                      setCustomStart(start);
+                      setCustomEnd(end);
+                    }}
+                  />
                 </View>
 
                 {isCustomInvalid && (
                   <View style={[styles.invalidBanner, { backgroundColor: colors.errorContainer }]}>
                     <Feather name="alert-circle" size={16} color={colors.error} />
-                    <ThemedText variant="bodySm" color={colors.error} style={{ fontWeight: '600' }}>
+                    <ThemedText variant="bodySm" color={colors.error} style={{ fontWeight: "600" }}>
                       Start date cannot be after end date
                     </ThemedText>
                   </View>
@@ -412,44 +312,44 @@ export function DateIntervalModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
   },
   sheet: {
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
     borderWidth: 1,
     padding: spacing.lg,
-    maxHeight: '85%',
+    maxHeight: "90%",
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing.md,
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   optionsList: {
     marginBottom: spacing.md,
   },
   presetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginBottom: spacing.xs,
   },
   presetLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
   },
   radioCircle: {
@@ -457,8 +357,8 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   radioInner: {
     width: 10,
@@ -473,33 +373,36 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   customSectionTitle: {
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: spacing.xxs,
   },
-  dateBlock: {
-    gap: 4,
+  rangeBadgesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
-  dateControlRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  rangeBadge: {
+    flex: 1,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    alignItems: "center",
+    gap: 2,
   },
-  stepperGroup: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  stepBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: radius.sm,
+  calendarCardWrap: {
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: spacing.xxs,
   },
   footer: {
     paddingTop: spacing.xs,
   },
   invalidBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
     padding: spacing.sm,
     borderRadius: radius.md,

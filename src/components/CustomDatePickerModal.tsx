@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
   Pressable,
   StyleSheet,
   ScrollView,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
-import { useTheme } from '@/context/ThemeContext';
-import { spacing } from '@/theme/spacing';
-import { radius } from '@/theme/radius';
-import { ThemedText } from './ThemedText';
-import { Button } from './Button';
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
+import { useTheme } from "@/context/ThemeContext";
+import { spacing } from "@/theme/spacing";
+import { radius } from "@/theme/radius";
+import { ThemedText } from "./ThemedText";
+import { Button } from "./Button";
+import { CalendarPicker } from "./CalendarPicker";
 
 interface CustomDatePickerModalProps {
   visible: boolean;
@@ -23,9 +24,17 @@ interface CustomDatePickerModalProps {
 }
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ];
+
+function isSameDay(d1: Date, d2: Date): boolean {
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+}
 
 export function CustomDatePickerModal({
   visible,
@@ -36,94 +45,39 @@ export function CustomDatePickerModal({
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
 
-  const [year, setYear] = useState<number>(selectedDate.getFullYear());
-  const [month, setMonth] = useState<number>(selectedDate.getMonth()); // 0-indexed
-  const [day, setDay] = useState<number>(selectedDate.getDate());
+  const [pickedDate, setPickedDate] = useState<Date>(selectedDate);
 
-  // Keep state in sync when modal opens
-  React.useEffect(() => {
+  // Sync state when modal becomes visible
+  useEffect(() => {
     if (visible) {
-      setYear(selectedDate.getFullYear());
-      setMonth(selectedDate.getMonth());
-      setDay(selectedDate.getDate());
+      setPickedDate(selectedDate);
     }
   }, [visible, selectedDate]);
-
-  // Number of days in chosen month/year
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const safeDay = Math.min(day, daysInMonth);
-
-  const changeMonth = (delta: number) => {
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-    let newM = month + delta;
-    let newY = year;
-    if (newM < 0) {
-      newM = 11;
-      newY -= 1;
-    } else if (newM > 11) {
-      newM = 0;
-      newY += 1;
-    }
-    setMonth(newM);
-    setYear(newY);
-    const maxDays = new Date(newY, newM + 1, 0).getDate();
-    if (day > maxDays) setDay(maxDays);
-  };
-
-  const changeDay = (delta: number) => {
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-    const newDay = day + delta;
-    if (newDay >= 1 && newDay <= daysInMonth) {
-      setDay(newDay);
-    } else if (newDay < 1) {
-      changeMonth(-1);
-      const prevMax = new Date(year, month, 0).getDate();
-      setDay(prevMax);
-    } else {
-      changeMonth(1);
-      setDay(1);
-    }
-  };
-
-  const changeYear = (delta: number) => {
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
-    setYear((y) => y + delta);
-  };
 
   const handlePreset = (presetDaysAgo: number) => {
     try { Haptics.selectionAsync(); } catch {}
     const target = new Date();
     target.setDate(target.getDate() - presetDaysAgo);
-    setYear(target.getFullYear());
-    setMonth(target.getMonth());
-    setDay(target.getDate());
+    setPickedDate(target);
   };
 
   const handleConfirm = () => {
     try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
-    const finalDate = new Date(year, month, safeDay, 12, 0, 0);
-    onSelectDate(finalDate);
+    onSelectDate(pickedDate);
     onClose();
   };
 
   const isCurrentSelectionToday = () => {
-    const today = new Date();
-    return (
-      today.getFullYear() === year &&
-      today.getMonth() === month &&
-      today.getDate() === safeDay
-    );
+    return isSameDay(new Date(), pickedDate);
   };
 
   const isCurrentSelectionYesterday = () => {
     const yest = new Date();
     yest.setDate(yest.getDate() - 1);
-    return (
-      yest.getFullYear() === year &&
-      yest.getMonth() === month &&
-      yest.getDate() === safeDay
-    );
+    return isSameDay(yest, pickedDate);
   };
+
+  const formattedDate = `${MONTH_NAMES[pickedDate.getMonth()].slice(0, 3)} ${pickedDate.getDate()}, ${pickedDate.getFullYear()}`;
 
   return (
     <Modal
@@ -147,14 +101,17 @@ export function CustomDatePickerModal({
           <View>
             <ThemedText variant="headlineMd">Select Date</ThemedText>
             <ThemedText variant="bodySm" color={colors.textSecondary}>
-              Log transaction for any day
+              Tap any date on the calendar
             </ThemedText>
           </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close"
             onPress={onClose}
-            style={[styles.closeBtn, { backgroundColor: colors.surfaceContainerLow }]}
+            style={({ pressed }) => [
+              styles.closeBtn,
+              { backgroundColor: colors.surfaceContainerLow, transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
           >
             <Feather name="x" size={20} color={colors.text} />
           </Pressable>
@@ -171,12 +128,13 @@ export function CustomDatePickerModal({
           <View style={styles.presetRow}>
             <Pressable
               onPress={() => handlePreset(0)}
-              style={[
+              style={({ pressed }) => [
                 styles.presetBtn,
                 { backgroundColor: colors.surfaceContainerLow },
                 isCurrentSelectionToday() && {
                   backgroundColor: isDark ? colors.secondary : colors.primary,
                 },
+                { transform: [{ scale: pressed ? 0.94 : 1 }] },
               ]}
             >
               <ThemedText
@@ -184,10 +142,11 @@ export function CustomDatePickerModal({
                 color={
                   isCurrentSelectionToday()
                     ? isDark
-                      ? '#052E16'
+                      ? "#052E16"
                       : colors.onPrimary
                     : colors.text
                 }
+                style={{ fontWeight: isCurrentSelectionToday() ? "700" : "500" }}
               >
                 Today
               </ThemedText>
@@ -195,12 +154,13 @@ export function CustomDatePickerModal({
 
             <Pressable
               onPress={() => handlePreset(1)}
-              style={[
+              style={({ pressed }) => [
                 styles.presetBtn,
                 { backgroundColor: colors.surfaceContainerLow },
                 isCurrentSelectionYesterday() && {
                   backgroundColor: isDark ? colors.secondary : colors.primary,
                 },
+                { transform: [{ scale: pressed ? 0.94 : 1 }] },
               ]}
             >
               <ThemedText
@@ -208,10 +168,11 @@ export function CustomDatePickerModal({
                 color={
                   isCurrentSelectionYesterday()
                     ? isDark
-                      ? '#052E16'
+                      ? "#052E16"
                       : colors.onPrimary
                     : colors.text
                 }
+                style={{ fontWeight: isCurrentSelectionYesterday() ? "700" : "500" }}
               >
                 Yesterday
               </ThemedText>
@@ -219,7 +180,11 @@ export function CustomDatePickerModal({
 
             <Pressable
               onPress={() => handlePreset(2)}
-              style={[styles.presetBtn, { backgroundColor: colors.surfaceContainerLow }]}
+              style={({ pressed }) => [
+                styles.presetBtn,
+                { backgroundColor: colors.surfaceContainerLow },
+                { transform: [{ scale: pressed ? 0.94 : 1 }] },
+              ]}
             >
               <ThemedText variant="labelMd" color={colors.text}>
                 2 Days Ago
@@ -228,7 +193,11 @@ export function CustomDatePickerModal({
 
             <Pressable
               onPress={() => handlePreset(7)}
-              style={[styles.presetBtn, { backgroundColor: colors.surfaceContainerLow }]}
+              style={({ pressed }) => [
+                styles.presetBtn,
+                { backgroundColor: colors.surfaceContainerLow },
+                { transform: [{ scale: pressed ? 0.94 : 1 }] },
+              ]}
             >
               <ThemedText variant="labelMd" color={colors.text}>
                 1 Week Ago
@@ -236,88 +205,29 @@ export function CustomDatePickerModal({
             </Pressable>
           </View>
 
-          {/* Stepper Adjusters */}
-          <ThemedText variant="labelSm" color={colors.textSecondary} style={styles.sectionLabel}>
-            ADJUST DATE
-          </ThemedText>
-
-          {/* Month Stepper */}
-          <View style={[styles.stepperCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <ThemedText variant="labelSm" color={colors.textSecondary}>
-              MONTH
-            </ThemedText>
-            <View style={styles.stepperRow}>
-              <Pressable
-                onPress={() => changeMonth(-1)}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceContainerLow }]}
-              >
-                <Feather name="chevron-left" size={20} color={colors.text} />
-              </Pressable>
-              <ThemedText variant="headlineSm" style={styles.stepperValue}>
-                {MONTH_NAMES[month]}
-              </ThemedText>
-              <Pressable
-                onPress={() => changeMonth(1)}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceContainerLow }]}
-              >
-                <Feather name="chevron-right" size={20} color={colors.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Day Stepper */}
-          <View style={[styles.stepperCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <ThemedText variant="labelSm" color={colors.textSecondary}>
-              DAY
-            </ThemedText>
-            <View style={styles.stepperRow}>
-              <Pressable
-                onPress={() => changeDay(-1)}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceContainerLow }]}
-              >
-                <Feather name="chevron-left" size={20} color={colors.text} />
-              </Pressable>
-              <ThemedText variant="headlineSm" style={styles.stepperValue}>
-                {safeDay}
-              </ThemedText>
-              <Pressable
-                onPress={() => changeDay(1)}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceContainerLow }]}
-              >
-                <Feather name="chevron-right" size={20} color={colors.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Year Stepper */}
-          <View style={[styles.stepperCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <ThemedText variant="labelSm" color={colors.textSecondary}>
-              YEAR
-            </ThemedText>
-            <View style={styles.stepperRow}>
-              <Pressable
-                onPress={() => changeYear(-1)}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceContainerLow }]}
-              >
-                <Feather name="chevron-left" size={20} color={colors.text} />
-              </Pressable>
-              <ThemedText variant="headlineSm" style={styles.stepperValue}>
-                {year}
-              </ThemedText>
-              <Pressable
-                onPress={() => changeYear(1)}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceContainerLow }]}
-              >
-                <Feather name="chevron-right" size={20} color={colors.text} />
-              </Pressable>
-            </View>
+          {/* Rectangular Calendar Card */}
+          <View
+            style={[
+              styles.calendarCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <CalendarPicker
+              mode="single"
+              selectedDate={pickedDate}
+              onSelectDate={(newDate) => setPickedDate(newDate)}
+              maxDate={new Date()}
+            />
           </View>
         </ScrollView>
 
         {/* Action Button */}
         <View style={styles.footer}>
           <Button
-            title={`Set Date: ${MONTH_NAMES[month].slice(0, 3)} ${safeDay}, ${year}`}
+            title={`Set Date: ${formattedDate}`}
             variant="primary"
             size="lg"
             onPress={handleConfirm}
@@ -334,17 +244,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: spacing.md,
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   content: {
     paddingVertical: spacing.md,
@@ -352,12 +262,12 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     letterSpacing: 0.8,
-    fontWeight: '700',
+    fontWeight: "700",
     marginTop: spacing.xs,
   },
   presetRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   presetBtn: {
@@ -365,27 +275,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
   },
-  stepperCard: {
+  calendarCard: {
     padding: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    gap: spacing.xs,
-  },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xxs,
-  },
-  stepBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperValue: {
-    fontWeight: '700',
+    marginTop: spacing.xs,
   },
   footer: {
     paddingTop: spacing.md,
