@@ -50,9 +50,9 @@ export default function TransactionsScreen() {
       const q = searchQuery.trim().toLowerCase();
       const matchQuery =
         !q ||
-        tx.merchant.toLowerCase().includes(q) ||
         tx.category.toLowerCase().includes(q) ||
         (tx.note && tx.note.toLowerCase().includes(q)) ||
+        (tx.payment_method && tx.payment_method.toLowerCase().includes(q)) ||
         tx.amount.toString().includes(q);
 
       return matchCat && matchQuery;
@@ -83,10 +83,10 @@ export default function TransactionsScreen() {
     }));
   }, [filtered]);
 
-  const handleDelete = (id: string, merchant: string) => {
+  const handleDelete = (id: string, category: string, amount: number) => {
     Alert.alert(
       'Delete Transaction',
-      `Delete "${merchant}" from your records?`,
+      `Delete "${category}" (${formatCurrency(amount, currency)}) from your records?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -208,7 +208,7 @@ export default function TransactionsScreen() {
                 styles.searchInput,
                 { color: colors.text },
               ]}
-              placeholder="Search by payee, note, amount..."
+              placeholder="Search by category, note, amount..."
               placeholderTextColor={colors.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -314,7 +314,7 @@ export default function TransactionsScreen() {
                     return (
                       <Pressable
                         key={tx.id}
-                        onLongPress={() => handleDelete(tx.id, tx.merchant)}
+                        onLongPress={() => handleDelete(tx.id, tx.category, tx.amount)}
                         style={({ pressed }) => [
                           styles.itemRow,
                           {
@@ -348,7 +348,7 @@ export default function TransactionsScreen() {
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <View style={styles.titleLine}>
                               <ThemedText variant="headlineSm" numberOfLines={1} style={{ flex: 1 }}>
-                                {tx.merchant}
+                                {tx.category}
                               </ThemedText>
                               <ThemedText
                                 variant="numericCurrency"
@@ -363,11 +363,11 @@ export default function TransactionsScreen() {
 
                             <View style={styles.metaLine}>
                               <ThemedText variant="bodySm" color={colors.textSecondary}>
-                                {tx.category}
+                                {tx.payment_method || 'Card'}
                               </ThemedText>
                               <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
                               <ThemedText variant="bodySm" color={colors.textTertiary}>
-                                {tx.payment_method || 'Card'}
+                                {formatDateGroup(tx.date)}
                               </ThemedText>
                               {tx.note ? (
                                 <>

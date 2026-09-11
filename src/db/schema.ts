@@ -1,14 +1,14 @@
-export type TransactionType = 'expense' | 'income' | 'transfer';
+export type TransactionType = 'expense' | 'income';
 
 export interface Transaction {
   id: string;
   amount: number;
   type: TransactionType;
   category: string;
-  merchant: string;
+  merchant?: string;
   note?: string;
   date: string; // ISO date string
-  payment_method?: string;
+  payment_method?: 'Card' | 'Cash' | string;
   created_at: string;
 }
 

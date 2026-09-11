@@ -107,7 +107,7 @@ export async function insertTransaction(
       tx.amount,
       tx.type,
       tx.category,
-      tx.merchant,
+      tx.merchant || tx.category || (tx.type === 'income' ? 'Income' : 'Expense'),
       tx.note || '',
       tx.date,
       tx.payment_method || 'Card',

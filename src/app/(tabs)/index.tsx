@@ -433,13 +433,22 @@ export default function DashboardScreen() {
 
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <ThemedText variant="headlineSm" numberOfLines={1}>
-                          {tx.merchant}
+                          {tx.category}
                         </ThemedText>
                         <View style={styles.txMetaRow}>
-                          <ThemedText variant="bodySm" color={colors.textSecondary}>
-                            {tx.category}
-                          </ThemedText>
-                          <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                          {tx.note ? (
+                            <>
+                              <ThemedText
+                                variant="bodySm"
+                                color={colors.textSecondary}
+                                numberOfLines={1}
+                                style={{ maxWidth: 130 }}
+                              >
+                                {tx.note}
+                              </ThemedText>
+                              <View style={[styles.metaDot, { backgroundColor: colors.borderStrong }]} />
+                            </>
+                          ) : null}
                           <ThemedText variant="bodySm" color={colors.textTertiary}>
                             {formatDateGroup(tx.date)}
                           </ThemedText>

@@ -25,7 +25,7 @@ import { CurrencyModal } from '@/components/CurrencyModal';
 import { AddCategoryModal } from '@/components/AddCategoryModal';
 import { Button } from '@/components/Button';
 
-const PAYMENT_METHODS = ['Card', 'Cash', 'Bank Transfer', 'Apple / Google Pay'];
+const PAYMENT_METHODS = ['Card', 'Cash'] as const;
 
 export default function QuickAddScreen() {
   const router = useRouter();
@@ -41,7 +41,6 @@ export default function QuickAddScreen() {
   const [flowType, setFlowType] = useState<TransactionType>('expense');
   const [rawAmount, setRawAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('Food & Dining');
-  const [merchant, setMerchant] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('Card');
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -83,9 +82,7 @@ export default function QuickAddScreen() {
         amount: numAmount,
         type: flowType,
         category: flowType === 'income' ? 'Income' : category,
-        merchant:
-          merchant.trim() ||
-          (flowType === 'income' ? 'Income Deposit' : category),
+        merchant: flowType === 'income' ? 'Income' : category,
         note: note.trim(),
         date: new Date().toISOString(),
         payment_method: paymentMethod,
@@ -100,7 +97,6 @@ export default function QuickAddScreen() {
         setIsSaving(false);
         setSavedSuccess(false);
         setRawAmount('');
-        setMerchant('');
         setNote('');
         router.push('/(tabs)');
       }, 600);
@@ -140,7 +136,7 @@ export default function QuickAddScreen() {
               { backgroundColor: colors.surfaceContainerLow },
             ]}
           >
-            {(['expense', 'income', 'transfer'] as const).map((type) => {
+            {(['expense', 'income'] as const).map((type) => {
               const isSelected = flowType === type;
               return (
                 <Pressable
@@ -257,40 +253,7 @@ export default function QuickAddScreen() {
             </View>
           )}
 
-          {/* Payee / Merchant Field */}
-          <View style={styles.sectionBlock}>
-            <ThemedText
-              variant="labelSm"
-              color={colors.textSecondary}
-              style={styles.sectionHeader}
-            >
-              {flowType === 'income' ? 'PAYEE / SOURCE' : 'PAYEE / MERCHANT'}
-            </ThemedText>
-
-            <Card padding="sm" style={styles.merchantCard} bordered={false}>
-              <View style={styles.inputRow}>
-                <Feather name="user-check" size={18} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.textInput, { color: colors.text }]}
-                  placeholder={
-                    flowType === 'income'
-                      ? 'e.g. Salary, Client Payout'
-                      : 'e.g. Grocery Store, Coffee, Rent'
-                  }
-                  placeholderTextColor={colors.textTertiary}
-                  value={merchant}
-                  onChangeText={setMerchant}
-                />
-                {merchant.length > 0 && (
-                  <Pressable onPress={() => setMerchant('')}>
-                    <Feather name="x-circle" size={16} color={colors.textSecondary} />
-                  </Pressable>
-                )}
-              </View>
-            </Card>
-          </View>
-
-          {/* Payment Method Selector */}
+          {/* Payment Method Selector (Card & Cash) */}
           <View style={styles.sectionBlock}>
             <ThemedText
               variant="labelSm"
@@ -300,16 +263,14 @@ export default function QuickAddScreen() {
               PAYMENT METHOD
             </ThemedText>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.paymentMethodList}
-            >
+            <View style={styles.paymentMethodRow}>
               {PAYMENT_METHODS.map((method) => {
                 const isSelected = paymentMethod === method;
                 return (
                   <Pressable
                     key={method}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
                     onPress={() => setPaymentMethod(method)}
                     style={({ pressed }) => [
                       styles.methodPill,
@@ -323,6 +284,17 @@ export default function QuickAddScreen() {
                       },
                     ]}
                   >
+                    <Feather
+                      name={method === 'Card' ? 'credit-card' : 'dollar-sign'}
+                      size={16}
+                      color={
+                        isSelected
+                          ? isDark
+                            ? '#052E16'
+                            : colors.onPrimary
+                          : colors.textSecondary
+                      }
+                    />
                     <ThemedText
                       variant="labelMd"
                       color={
@@ -339,7 +311,7 @@ export default function QuickAddScreen() {
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </View>
           </View>
 
           {/* Optional Note */}
@@ -473,29 +445,23 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  merchantCard: {
-    gap: spacing.xs,
+  paymentMethodRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
-  inputRow: {
+  methodPill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xs,
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.lg,
   },
   textInput: {
     flex: 1,
     height: 42,
     fontSize: 15,
-  },
-  paymentMethodList: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: 2,
-  },
-  methodPill: {
-    paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.full,
   },
   noteCard: {
     flexDirection: 'row',
