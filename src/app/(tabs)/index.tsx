@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   ScrollView,
@@ -8,15 +8,18 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
-import { formatCurrency, formatDateGroup, getCurrentMonthName } from '@/utils/formatters';
+import { formatCurrency, formatDateGroup } from '@/utils/formatters';
+import { convertCurrency } from '@/utils/currencies';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { ThemedText } from '@/components/ThemedText';
 import { Card } from '@/components/Card';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
+import { DateIntervalModal } from '@/components/DateIntervalModal';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -26,13 +29,24 @@ export default function DashboardScreen() {
     analytics,
     currency,
     isBalanceHidden,
+    dateInterval,
+    setDateInterval,
     toggleBalanceVisibility,
     clearAll,
   } = useTransactions();
 
-  // Net worth is purely data-driven: real income minus real expenses
+  const [intervalModalVisible, setIntervalModalVisible] = useState(false);
+
+  // Net worth is data-driven for the active interval
   const netWorth = analytics.netSavings;
-  const recentTransactions = transactions.slice(0, 5);
+
+  const startMs = new Date(dateInterval.startDate).getTime();
+  const endMs = new Date(dateInterval.endDate).getTime();
+  const intervalTransactions = transactions.filter((tx) => {
+    const t = new Date(tx.date).getTime();
+    return t >= startMs && t <= endMs;
+  });
+  const recentTransactions = intervalTransactions.slice(0, 5);
 
   const handleClear = () => {
     Alert.alert(
@@ -74,14 +88,26 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Dynamic Month Badge */}
+        {/* Dynamic Interval Badge */}
         <View style={styles.topRow}>
-          <View style={[styles.periodBadge, { backgroundColor: colors.surfaceContainerLow }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Select Date Interval"
+            onPress={() => setIntervalModalVisible(true)}
+            style={({ pressed }) => [
+              styles.periodBadge,
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
             <Feather name="calendar" size={14} color={colors.textSecondary} />
             <ThemedText variant="labelMd" style={{ fontWeight: '600' }}>
-              {getCurrentMonthName()}
+              {dateInterval.label}
             </ThemedText>
-          </View>
+            <Feather name="chevron-down" size={12} color={colors.textSecondary} />
+          </Pressable>
 
           <View
             style={[
@@ -115,7 +141,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Hero Card: Total Net Worth */}
+        {/* Hero Card: Net Balance */}
         <View
           style={[
             styles.heroCard,
@@ -130,7 +156,7 @@ export default function DashboardScreen() {
               color="rgba(255,255,255,0.6)"
               style={{ letterSpacing: 0.8 }}
             >
-              TOTAL NET BALANCE
+              NET BALANCE
             </ThemedText>
             <Pressable
               accessibilityRole="button"
@@ -176,22 +202,19 @@ export default function DashboardScreen() {
                 color={netWorth >= 0 ? '#10B981' : '#EF4444'}
                 style={{ fontWeight: '700' }}
               >
-                {transactions.length} {transactions.length === 1 ? 'record' : 'records'}
+                {intervalTransactions.length} {intervalTransactions.length === 1 ? 'record' : 'records'}
               </ThemedText>
             </View>
-            <ThemedText variant="bodySm" color="rgba(255,255,255,0.6)">
-              active ledger
-            </ThemedText>
           </View>
         </View>
 
-        {/* Cash Flow Split Matrix (Inflow vs Outflow) */}
+        {/* Cash Flow Matrix (Income vs Expenses) */}
         <View style={styles.matrixRow}>
-          {/* Card 1: Inflow */}
+          {/* Card 1: Income */}
           <Card style={styles.matrixCard} padding="md" bordered={false}>
             <View style={styles.matrixHeader}>
               <ThemedText variant="bodySm" color={colors.textSecondary}>
-                Cash Inflow
+                Income
               </ThemedText>
               <View style={[styles.miniDot, { backgroundColor: colors.secondary }]} />
             </View>
@@ -201,7 +224,7 @@ export default function DashboardScreen() {
             <View style={styles.matrixPillRow}>
               <Feather name="trending-up" size={12} color={colors.secondary} />
               <ThemedText variant="labelSm" color={colors.secondary} style={{ fontWeight: '600' }}>
-                Total income
+                Received
               </ThemedText>
             </View>
             <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceContainer }]}>
@@ -217,7 +240,7 @@ export default function DashboardScreen() {
             </View>
           </Card>
 
-          {/* Card 2: Outflow / Expenses */}
+          {/* Card 2: Expenses */}
           <Card style={styles.matrixCard} padding="md" bordered={false}>
             <View style={styles.matrixHeader}>
               <ThemedText variant="bodySm" color={colors.textSecondary}>
@@ -248,12 +271,12 @@ export default function DashboardScreen() {
           </Card>
         </View>
 
-        {/* Monthly Spend Cap Visual Gauge */}
+        {/* Budget Progress Gauge */}
         <Card padding="md" style={styles.spendCapCard} bordered={false}>
           <View style={styles.spendCapHeader}>
             <View style={styles.spendCapTitle}>
               <Feather name="pie-chart" size={16} color={colors.primary} />
-              <ThemedText variant="headlineSm">Monthly Spend Cap</ThemedText>
+              <ThemedText variant="headlineSm">Budget</ThemedText>
             </View>
             <ThemedText variant="labelMd" style={{ fontWeight: '700' }}>
               {Math.round(analytics.budgetUsedPercent)}%
@@ -282,7 +305,7 @@ export default function DashboardScreen() {
               <ThemedText variant="bodySm" style={{ fontWeight: '700' }}>
                 {formatCurrency(analytics.totalExpenses, currency)}
               </ThemedText>{' '}
-              of {formatCurrency(analytics.budgetCap, currency)} limit
+              of {formatCurrency(analytics.budgetCap, currency)}
             </ThemedText>
             <ThemedText variant="labelSm" color={colors.secondary} style={{ fontWeight: '700' }}>
               {formatCurrency(analytics.budgetRemaining, currency)} remaining
@@ -290,94 +313,11 @@ export default function DashboardScreen() {
           </View>
         </Card>
 
-        {/* Quick Routine Actions */}
-        <View style={styles.routinesSection}>
-          <ThemedText
-            variant="labelSm"
-            color={colors.textSecondary}
-            style={{ textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: spacing.xs }}
-          >
-            Quick Actions
-          </ThemedText>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.routineList}>
-            <Pressable
-              onPress={() => router.push('/(tabs)/quick-add')}
-              style={({ pressed }) => [
-                styles.routineBtn,
-                {
-                  backgroundColor: colors.surface,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Feather name="plus-circle" size={16} color={colors.primary} />
-              <ThemedText variant="labelMd">Log Expense</ThemedText>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push('/(tabs)/transactions')}
-              style={({ pressed }) => [
-                styles.routineBtn,
-                {
-                  backgroundColor: colors.surface,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Feather name="list" size={16} color={colors.text} />
-              <ThemedText variant="labelMd">All Transactions</ThemedText>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push('/(tabs)/analytics')}
-              style={({ pressed }) => [
-                styles.routineBtn,
-                {
-                  backgroundColor: colors.surface,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Feather name="activity" size={16} color={colors.text} />
-              <ThemedText variant="labelMd">Burn Rate</ThemedText>
-            </Pressable>
-
-            {transactions.length > 0 && (
-              <Pressable
-                onPress={handleClear}
-                style={({ pressed }) => [
-                  styles.routineBtn,
-                  {
-                    backgroundColor: colors.surface,
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
-              >
-                <Feather name="trash-2" size={16} color={colors.error} />
-                <ThemedText variant="labelMd" color={colors.error}>
-                  Reset
-                </ThemedText>
-              </Pressable>
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Activity Stream Section */}
+        {/* Recent Transactions Section */}
         <View style={styles.activitySection}>
           <View style={styles.activityHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-              <ThemedText variant="headlineSm">Activity Stream</ThemedText>
-              {transactions.length > 0 && (
-                <View style={[styles.recentPill, { backgroundColor: colors.surfaceContainer }]}>
-                  <ThemedText variant="labelSm" color={colors.textSecondary}>
-                    Recent
-                  </ThemedText>
-                </View>
-              )}
-            </View>
-
-            {transactions.length > 0 && (
+            <ThemedText variant="headlineSm">Recent Transactions</ThemedText>
+            {intervalTransactions.length > 0 && (
               <Pressable onPress={() => router.push('/(tabs)/transactions')}>
                 <ThemedText variant="labelMd" color={colors.text}>
                   See all
@@ -386,11 +326,11 @@ export default function DashboardScreen() {
             )}
           </View>
 
-          {transactions.length === 0 ? (
+          {recentTransactions.length === 0 ? (
             <Card padding="lg" bordered={false}>
               <EmptyState
-                title="Zero Transactions"
-                description="Your activity stream is currently empty. Tap below to log your first transaction."
+                title="No Transactions"
+                description="No transactions recorded for this interval."
                 onAction={() => router.push('/(tabs)/quick-add')}
                 actionTitle="Quick Add Transaction"
               />
@@ -400,6 +340,7 @@ export default function DashboardScreen() {
               {recentTransactions.map((tx, idx) => {
                 const isExpense = tx.type === 'expense';
                 const isLast = idx === recentTransactions.length - 1;
+                const convertedAmount = convertCurrency(tx.amount, tx.currency || 'USD', currency);
 
                 return (
                   <View
@@ -463,8 +404,8 @@ export default function DashboardScreen() {
                         style={{ fontWeight: '700' }}
                       >
                         {isExpense
-                          ? `-${formatCurrency(tx.amount, currency)}`
-                          : `+${formatCurrency(tx.amount, currency)}`}
+                          ? `-${formatCurrency(convertedAmount, currency)}`
+                          : `+${formatCurrency(convertedAmount, currency)}`}
                       </ThemedText>
                       <ThemedText variant="labelSm" color={colors.textTertiary}>
                         {tx.payment_method || 'Card'}
@@ -477,6 +418,14 @@ export default function DashboardScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Date Interval Modal */}
+      <DateIntervalModal
+        visible={intervalModalVisible}
+        currentInterval={dateInterval}
+        onSelectInterval={(inv) => setDateInterval(inv)}
+        onClose={() => setIntervalModalVisible(false)}
+      />
     </View>
   );
 }
@@ -605,22 +554,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  routinesSection: {
-    gap: spacing.xs,
-  },
-  routineList: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: 2,
-  },
-  routineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.full,
-    gap: spacing.xs,
-  },
   activitySection: {
     gap: spacing.sm,
   },
@@ -628,11 +561,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  recentPill: {
-    paddingVertical: 2,
-    paddingHorizontal: spacing.xs + 2,
-    borderRadius: radius.full,
   },
   activityCard: {
     overflow: 'hidden',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
@@ -18,6 +19,100 @@ interface CategoryGridProps {
   onAddNewCategory?: () => void;
 }
 
+function CategoryChip({
+  category,
+  icon,
+  isSelected,
+  colors,
+  isDark,
+  onPress,
+}: {
+  category: string;
+  icon: string;
+  isSelected: boolean;
+  colors: any;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.94, { duration: 150 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { duration: 250 });
+  };
+
+  return (
+    <Animated.View style={[styles.cardWrapper, animatedStyle]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[
+          styles.card,
+          {
+            backgroundColor: isSelected
+              ? isDark
+                ? colors.secondary
+                : colors.primary
+              : isDark
+              ? colors.surfaceContainerLow
+              : colors.surface,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.iconWrap,
+            {
+              backgroundColor: isSelected
+                ? isDark
+                  ? 'rgba(0,0,0,0.3)'
+                  : 'rgba(255,255,255,0.2)'
+                : colors.surfaceContainer,
+            },
+          ]}
+        >
+          <Feather
+            name={icon as any}
+            size={16}
+            color={
+              isSelected
+                ? isDark
+                  ? '#052E16'
+                  : colors.onPrimary
+                : colors.textSecondary
+            }
+          />
+        </View>
+
+        <ThemedText
+          variant="labelSm"
+          color={
+            isSelected
+              ? isDark
+                ? '#052E16'
+                : colors.onPrimary
+              : colors.text
+          }
+          numberOfLines={1}
+          style={{ fontWeight: isSelected ? '700' : '500', flex: 1 }}
+        >
+          {category.split(' ')[0]}
+        </ThemedText>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export function CategoryGrid({
   categories,
   selectedCategory,
@@ -33,95 +128,47 @@ export function CategoryGrid({
         const iconName = cat.icon || 'tag';
 
         return (
-          <Pressable
+          <CategoryChip
             key={cat.category}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}
+            category={cat.category}
+            icon={iconName}
+            isSelected={isSelected}
+            colors={colors}
+            isDark={isDark}
             onPress={() => onSelectCategory(cat.category)}
-            style={({ pressed }) => [
-              styles.card,
-              {
-                backgroundColor: isSelected
-                  ? isDark
-                    ? colors.secondary
-                    : colors.primary
-                  : isDark
-                  ? colors.surfaceContainerLow
-                  : colors.surface,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.iconWrap,
-                {
-                  backgroundColor: isSelected
-                    ? isDark
-                      ? 'rgba(0,0,0,0.3)'
-                      : 'rgba(255,255,255,0.2)'
-                    : colors.surfaceContainer,
-                },
-              ]}
-            >
-              <Feather
-                name={iconName as any}
-                size={16}
-                color={
-                  isSelected
-                    ? isDark
-                      ? '#052E16'
-                      : colors.onPrimary
-                    : colors.textSecondary
-                }
-              />
-            </View>
-
-            <ThemedText
-              variant="labelSm"
-              color={
-                isSelected
-                  ? isDark
-                    ? '#052E16'
-                    : colors.onPrimary
-                  : colors.text
-              }
-              numberOfLines={1}
-              style={{ fontWeight: isSelected ? '700' : '500', flex: 1 }}
-            >
-              {cat.category.split(' ')[0]}
-            </ThemedText>
-          </Pressable>
+          />
         );
       })}
 
       {/* Add Custom Category Button */}
       {onAddNewCategory && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add Category"
-          onPress={onAddNewCategory}
-          style={({ pressed }) => [
-            styles.card,
-            styles.addCard,
-            {
-              backgroundColor: colors.surfaceContainerLow,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainer }]}>
-            <Feather name="plus" size={16} color={colors.secondary} />
-          </View>
-          <ThemedText
-            variant="labelSm"
-            color={colors.secondary}
-            numberOfLines={1}
-            style={{ fontWeight: '700' }}
+        <View style={styles.cardWrapper}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add Category"
+            onPress={onAddNewCategory}
+            style={({ pressed }) => [
+              styles.card,
+              styles.addCard,
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
           >
-            + Custom
-          </ThemedText>
-        </Pressable>
+            <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainer }]}>
+              <Feather name="plus" size={16} color={colors.secondary} />
+            </View>
+            <ThemedText
+              variant="labelSm"
+              color={colors.secondary}
+              numberOfLines={1}
+              style={{ fontWeight: '700' }}
+            >
+              + Custom
+            </ThemedText>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -133,8 +180,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
-  card: {
+  cardWrapper: {
     width: '31.8%',
+  },
+  card: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,

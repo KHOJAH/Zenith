@@ -9,7 +9,15 @@ export interface Transaction {
   note?: string;
   date: string; // ISO date string
   payment_method?: 'Card' | 'Cash' | string;
+  currency?: string; // 3-letter currency code (e.g. 'USD', 'JOD')
   created_at: string;
+}
+
+export interface DateInterval {
+  id: 'current_month' | 'last_30_days' | 'last_7_days' | 'custom';
+  label: string;
+  startDate: string; // ISO or YYYY-MM-DD
+  endDate: string;   // ISO or YYYY-MM-DD
 }
 
 export interface BudgetCategory {

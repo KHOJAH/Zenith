@@ -220,10 +220,6 @@ export default function QuickAddScreen() {
                 selectTextOnFocus
               />
             </View>
-
-            <ThemedText variant="bodySm" color={colors.textSecondary}>
-              Tap to enter amount via native keyboard
-            </ThemedText>
           </Pressable>
 
           {/* Category Grid (with + Custom category support) */}

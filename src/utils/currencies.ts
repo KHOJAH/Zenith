@@ -53,3 +53,68 @@ export function getCurrencyInfo(code: string): CurrencyInfo {
   const found = CURRENCIES.find((c) => c.code.toUpperCase() === code.toUpperCase());
   return found || { code, symbol: code, name: code, flag: '🌐' };
 }
+
+// Exchange rates relative to 1 USD base
+export const EXCHANGE_RATES: Record<string, number> = {
+  USD: 1.0,
+  EUR: 0.92,
+  GBP: 0.79,
+  JOD: 0.709,
+  AED: 3.6725,
+  SAR: 3.75,
+  KWD: 0.307,
+  QAR: 3.64,
+  BHD: 0.376,
+  OMR: 0.385,
+  EGP: 48.5,
+  CAD: 1.36,
+  AUD: 1.52,
+  JPY: 155.0,
+  CHF: 0.90,
+  CNY: 7.23,
+  INR: 83.5,
+  SGD: 1.35,
+  NZD: 1.64,
+  HKD: 7.82,
+  KRW: 1375.0,
+  BRL: 5.45,
+  MXN: 18.2,
+  SEK: 10.6,
+  NOK: 10.8,
+  DKK: 6.87,
+  TRY: 32.8,
+  ZAR: 18.5,
+  PLN: 3.98,
+  THB: 36.7,
+  IDR: 16250.0,
+  MYR: 4.71,
+  PHP: 58.6,
+  ILS: 3.72,
+  CLP: 935.0,
+  COP: 4120.0,
+  ARS: 900.0,
+  CZK: 23.2,
+  HUF: 365.0,
+  RON: 4.58,
+  VND: 25400.0,
+};
+
+export function convertCurrency(
+  amount: number,
+  fromCode: string = 'USD',
+  toCode: string = 'USD'
+): number {
+  if (!amount || amount === 0) return 0;
+  const from = (fromCode || 'USD').toUpperCase();
+  const to = (toCode || 'USD').toUpperCase();
+  if (from === to) return amount;
+
+  const rateFrom = EXCHANGE_RATES[from] || 1;
+  const rateTo = EXCHANGE_RATES[to] || 1;
+
+  // Convert to USD base first, then to target currency
+  const inUSD = amount / rateFrom;
+  const result = inUSD * rateTo;
+  return Math.round(result * 100) / 100;
+}
+

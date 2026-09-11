@@ -28,14 +28,13 @@ export default function AnalyticsScreen() {
     transactions,
     analytics,
     currency,
+    dateInterval,
   } = useTransactions();
-
-  const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
 
   const handleExport = () => {
     Alert.alert(
       'Export Statement',
-      `Your ${getCurrentMonthName()} financial summary statement has been prepared.`,
+      `Your ${dateInterval.label} financial summary statement has been prepared.`,
       [{ text: 'OK' }]
     );
   };
@@ -78,56 +77,28 @@ export default function AnalyticsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Interactive Period Selector */}
-        <View
-          style={[
-            styles.periodSelector,
-            { backgroundColor: colors.surfaceContainerLow },
-          ]}
-        >
-          {(['weekly', 'monthly', 'yearly'] as const).map((p) => {
-            const isSelected = period === p;
-            return (
-              <Pressable
-                key={p}
-                onPress={() => setPeriod(p)}
-                style={[
-                  styles.periodBtn,
-                  isSelected && {
-                    backgroundColor: isDark ? colors.secondary : colors.primary,
-                  },
-                ]}
-              >
-                <ThemedText
-                  variant="labelMd"
-                  color={
-                    isSelected
-                      ? isDark
-                        ? '#052E16'
-                        : colors.onPrimary
-                      : colors.textSecondary
-                  }
-                  style={{ textTransform: 'capitalize', fontWeight: isSelected ? '700' : '500' }}
-                >
-                  {p}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+        {/* Interval Banner */}
+        <View style={styles.topRow}>
+          <View style={[styles.periodBadge, { backgroundColor: colors.surfaceContainerLow }]}>
+            <Feather name="calendar" size={14} color={colors.textSecondary} />
+            <ThemedText variant="labelMd" style={{ fontWeight: '600' }}>
+              {dateInterval.label}
+            </ThemedText>
+          </View>
         </View>
 
         {transactions.length === 0 ? (
           <Card padding="lg" bordered={false}>
             <EmptyState
-              title="No Analytics Available"
-              description="Analytics and burn rate models need transactions to project your cash velocity."
+              title="No Analytics"
+              description="Analytics require logged transactions to calculate your cash flow."
               onAction={() => router.push('/(tabs)/quick-add')}
               actionTitle="Log Transaction"
             />
           </Card>
         ) : (
           <>
-            {/* Dynamic Real Insight Card */}
+            {/* Spending Insight Card */}
             <Card padding="md" style={styles.insightCard} bordered={false}>
               <View style={styles.insightHeader}>
                 <View
@@ -146,7 +117,7 @@ export default function AnalyticsScreen() {
                       color={colors.secondary}
                       style={{ fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}
                     >
-                      Real Velocity Insight
+                      Spending Insight
                     </ThemedText>
                     <View style={[styles.pulseDot, { backgroundColor: colors.secondary }]} />
                   </View>
@@ -154,19 +125,18 @@ export default function AnalyticsScreen() {
                   <ThemedText variant="bodyMd" style={{ marginTop: spacing.xxs, lineHeight: 20 }}>
                     {topCategory && topCategory.spent > 0 ? (
                       <>
-                        Your highest spending category is{' '}
+                        Highest spending category is{' '}
                         <ThemedText variant="bodyMd" color={colors.secondary} style={{ fontWeight: '700' }}>
                           {topCategory.category}
                         </ThemedText>{' '}
-                        at {formatCurrency(topCategory.spent, currency)} ({Math.round(topCategory.percentage)}% of cap). You have{' '}
+                        at {formatCurrency(topCategory.spent, currency)} ({Math.round(topCategory.percentage)}% of budget). Remaining budget:{' '}
                         <ThemedText variant="bodyMd" style={{ fontWeight: '700' }}>
                           {formatCurrency(analytics.budgetRemaining, currency)}
-                        </ThemedText>{' '}
-                        budget remaining this month.
+                        </ThemedText>.
                       </>
                     ) : (
                       <>
-                        You are maintaining healthy pacing with{' '}
+                        Maintaining pacing with{' '}
                         <ThemedText variant="bodyMd" color={colors.secondary} style={{ fontWeight: '700' }}>
                           {formatCurrency(analytics.dailyVelocity, currency)}/day
                         </ThemedText>{' '}
@@ -178,18 +148,17 @@ export default function AnalyticsScreen() {
               </View>
             </Card>
 
-            {/* Central Intelligence Donut Ring Hero */}
+            {/* Donut Ring Overview */}
             <Card padding="lg" style={styles.donutCard} bordered={false}>
               <View style={styles.donutHeader}>
                 <View>
+                  <ThemedText variant="headlineSm">Budget Breakdown</ThemedText>
                   <ThemedText
-                    variant="labelSm"
+                    variant="bodySm"
                     color={colors.textSecondary}
-                    style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
                   >
-                    Monthly Budget Ceiling
+                    Spending by category
                   </ThemedText>
-                  <ThemedText variant="headlineSm">Budget Health</ThemedText>
                 </View>
 
                 <View
@@ -204,7 +173,7 @@ export default function AnalyticsScreen() {
                     color={colors.secondary}
                     style={{ fontWeight: '700' }}
                   >
-                    {Math.round(analytics.budgetUsedPercent)}% Paced
+                    {Math.round(analytics.budgetUsedPercent)}% Spent
                   </ThemedText>
                 </View>
               </View>
@@ -217,23 +186,22 @@ export default function AnalyticsScreen() {
               />
             </Card>
 
-            {/* Weekly Run Rate Comparison Bar Chart */}
+            {/* Weekly Spending Bar Chart */}
             <Card padding="md" style={styles.runRateCard} bordered={false}>
               <View style={styles.runRateHeader}>
                 <View>
+                  <ThemedText variant="headlineSm">Weekly Spending</ThemedText>
                   <ThemedText
-                    variant="labelSm"
+                    variant="bodySm"
                     color={colors.textSecondary}
-                    style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
                   >
-                    Cadence
+                    Outflow pace
                   </ThemedText>
-                  <ThemedText variant="headlineSm">Weekly Run Rate</ThemedText>
                 </View>
 
                 <View style={{ alignItems: 'flex-end' }}>
                   <ThemedText variant="labelMd" color={colors.secondary} style={{ fontWeight: '700' }}>
-                    {analytics.budgetRemaining > 0 ? 'Under Budget' : 'Cap Reached'}
+                    {analytics.budgetRemaining > 0 ? 'Under Budget' : 'Limit Reached'}
                   </ThemedText>
                   <ThemedText variant="bodySm" color={colors.textTertiary}>
                     {formatCurrency(analytics.budgetRemaining, currency)} remaining
@@ -244,7 +212,7 @@ export default function AnalyticsScreen() {
               <WeeklyBarChart weeklyBurn={analytics.weeklyBurn} currency={currency} />
             </Card>
 
-            {/* Fiscal Performance Banner */}
+            {/* Savings Rate Banner */}
             <View
               style={[
                 styles.editorialBanner,
@@ -259,13 +227,13 @@ export default function AnalyticsScreen() {
                   color="#10B981"
                   style={{ textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '700' }}
                 >
-                  Monthly Savings Rate
+                  Savings Rate
                 </ThemedText>
                 <ThemedText variant="headlineSm" color="#FFFFFF" style={{ marginTop: 2 }}>
-                  {savingsRate}% Saved This Month
+                  {savingsRate}% Saved This Period
                 </ThemedText>
                 <ThemedText variant="bodySm" color="rgba(255,255,255,0.7)">
-                  Net cash retained: {formatCurrency(analytics.netSavings, currency)}
+                  Net saved: {formatCurrency(analytics.netSavings, currency)}
                 </ThemedText>
               </View>
 
@@ -274,19 +242,10 @@ export default function AnalyticsScreen() {
               </View>
             </View>
 
-            {/* Category Budgets Breakdown Section */}
+            {/* Category Budgets Section */}
             <View style={styles.categoriesSection}>
               <View style={styles.catHeaderRow}>
-                <View>
-                  <ThemedText
-                    variant="labelSm"
-                    color={colors.textSecondary}
-                    style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}
-                  >
-                    Granular Allocation
-                  </ThemedText>
-                  <ThemedText variant="headlineMd">Category Budgets</ThemedText>
-                </View>
+                <ThemedText variant="headlineMd">Category Budgets</ThemedText>
               </View>
 
               <View style={styles.categoryStack}>
@@ -405,18 +364,19 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
     gap: spacing.md,
   },
-  periodSelector: {
+  topRow: {
     flexDirection: 'row',
-    padding: 3,
-    borderRadius: radius.full,
-    marginTop: spacing.xs,
-  },
-  periodBtn: {
-    flex: 1,
-    paddingVertical: spacing.xs + 2,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingTop: spacing.xs,
+  },
+  periodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm + 2,
     borderRadius: radius.full,
+    gap: spacing.xs,
   },
   insightCard: {
     gap: spacing.xs,

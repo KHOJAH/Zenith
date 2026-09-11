@@ -58,6 +58,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           note TEXT,
           date TEXT NOT NULL,
           payment_method TEXT,
+          currency TEXT DEFAULT 'USD',
           created_at TEXT NOT NULL
         );
 
@@ -68,6 +69,12 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           subtitle TEXT NOT NULL
         );
       `);
+
+      try {
+        await db.execAsync("ALTER TABLE transactions ADD COLUMN currency TEXT DEFAULT 'USD';");
+      } catch {
+        // Column already exists in SQLite table
+      }
 
       const existingBudgets = await db.getAllAsync<{ category: string }>('SELECT category FROM budgets LIMIT 1');
       if (existingBudgets.length === 0) {
@@ -98,10 +105,11 @@ export async function insertTransaction(
   const db = await getDatabase();
   const id = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const created_at = new Date().toISOString();
+  const txCurrency = tx.currency || 'USD';
 
   await db.runAsync(
-    `INSERT INTO transactions (id, amount, type, category, merchant, note, date, payment_method, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO transactions (id, amount, type, category, merchant, note, date, payment_method, currency, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       tx.amount,
@@ -111,12 +119,14 @@ export async function insertTransaction(
       tx.note || '',
       tx.date,
       tx.payment_method || 'Card',
+      txCurrency,
       created_at,
     ]
   );
 
   return {
     ...tx,
+    currency: txCurrency,
     id,
     created_at,
   };

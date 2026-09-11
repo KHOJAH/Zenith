@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Transaction, BudgetCategory } from '@/db/schema';
+import { Transaction, BudgetCategory, DateInterval } from '@/db/schema';
 import * as db from '@/db/database';
 import { calculateMonthAnalytics, MonthAnalytics } from '@/utils/velocity';
 
@@ -10,7 +10,9 @@ interface TransactionContextType {
   isLoading: boolean;
   currency: string;
   isBalanceHidden: boolean;
+  dateInterval: DateInterval;
   setCurrency: (c: string) => void;
+  setDateInterval: (interval: DateInterval) => void;
   toggleBalanceVisibility: () => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at'>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -27,6 +29,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currency, setCurrency] = useState<string>('USD');
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
+
+  // Initialize date interval to current month
+  const now = new Date();
+  const [dateInterval, setDateInterval] = useState<DateInterval>({
+    id: 'current_month',
+    label: now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+    startDate: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString(),
+    endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString(),
+  });
 
   const refresh = useCallback(async () => {
     try {
@@ -49,7 +60,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }, [refresh]);
 
   const addTransaction = async (tx: Omit<Transaction, 'id' | 'created_at'>) => {
-    const created = await db.insertTransaction(tx);
+    const created = await db.insertTransaction({
+      ...tx,
+      currency: tx.currency || currency,
+    });
     await refresh();
     return created;
   };
@@ -80,7 +94,13 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     setIsBalanceHidden((prev) => !prev);
   };
 
-  const analytics = calculateMonthAnalytics(transactions, budgets);
+  const analytics = calculateMonthAnalytics(
+    transactions,
+    budgets,
+    currency,
+    dateInterval.startDate,
+    dateInterval.endDate
+  );
 
   return (
     <TransactionContext.Provider
@@ -91,7 +111,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         isLoading,
         currency,
         isBalanceHidden,
+        dateInterval,
         setCurrency,
+        setDateInterval,
         toggleBalanceVisibility,
         addTransaction,
         deleteTransaction,

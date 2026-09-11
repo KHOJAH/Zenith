@@ -12,14 +12,15 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
 import { Transaction } from '@/db/schema';
-import { formatCurrency, formatDateGroup, getCurrentMonthName } from '@/utils/formatters';
+import { formatCurrency, formatDateGroup } from '@/utils/formatters';
+import { convertCurrency } from '@/utils/currencies';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { ThemedText } from '@/components/ThemedText';
 import { Card } from '@/components/Card';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
-
+import { DateIntervalModal } from '@/components/DateIntervalModal';
 
 export default function TransactionsScreen() {
   const router = useRouter();
@@ -29,20 +30,30 @@ export default function TransactionsScreen() {
     budgets,
     analytics,
     currency,
+    dateInterval,
+    setDateInterval,
     deleteTransaction,
   } = useTransactions();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [intervalModalVisible, setIntervalModalVisible] = useState(false);
 
   const filterCategories = useMemo(() => {
     const list = ['All', ...budgets.map((b) => b.category), 'Income'];
     return Array.from(new Set(list));
   }, [budgets]);
 
-  // Filter transactions
+  // Filter transactions within selected date interval and query
   const filtered = useMemo(() => {
+    const startMs = new Date(dateInterval.startDate).getTime();
+    const endMs = new Date(dateInterval.endDate).getTime();
+
     return transactions.filter((tx) => {
+      const txTime = new Date(tx.date).getTime();
+      const inInterval = txTime >= startMs && txTime <= endMs;
+      if (!inInterval) return false;
+
       const matchCat =
         selectedCategory === 'All' ||
         tx.category.toLowerCase() === selectedCategory.toLowerCase();
@@ -57,7 +68,7 @@ export default function TransactionsScreen() {
 
       return matchCat && matchQuery;
     });
-  }, [transactions, selectedCategory, searchQuery]);
+  }, [transactions, selectedCategory, searchQuery, dateInterval]);
 
   // Group by date
   const groupedTransactions = useMemo(() => {
@@ -69,19 +80,20 @@ export default function TransactionsScreen() {
         groups[groupKey] = { items: [], netTotal: 0 };
       }
       groups[groupKey].items.push(tx);
+      const converted = convertCurrency(tx.amount, tx.currency || 'USD', currency);
       if (tx.type === 'income') {
-        groups[groupKey].netTotal += tx.amount;
+        groups[groupKey].netTotal += converted;
       } else {
-        groups[groupKey].netTotal -= tx.amount;
+        groups[groupKey].netTotal -= converted;
       }
     });
 
     return Object.entries(groups).map(([dateLabel, data]) => ({
       dateLabel,
       items: data.items,
-      netTotal: data.netTotal,
+      netTotal: Math.round(data.netTotal * 100) / 100,
     }));
-  }, [filtered]);
+  }, [filtered, currency]);
 
   const handleDelete = (id: string, category: string, amount: number) => {
     Alert.alert(
@@ -121,18 +133,22 @@ export default function TransactionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="Zenith" subtitle="Ledger" />
+      <Header title="Zenith" subtitle="Transactions" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Spend Insight Header Pill */}
-        <View
-          style={[
+        {/* Spend Insight Card */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Change Date Interval"
+          onPress={() => setIntervalModalVisible(true)}
+          style={({ pressed }) => [
             styles.spendInsightCard,
             {
               backgroundColor: isDark ? '#131A29' : '#131B2E',
+              opacity: pressed ? 0.9 : 1,
             },
           ]}
         >
@@ -144,13 +160,14 @@ export default function TransactionsScreen() {
                 color="#DAE2FD"
                 style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}
               >
-                {getCurrentMonthName()} Overview
+                {dateInterval.label}
               </ThemedText>
+              <Feather name="chevron-down" size={12} color="rgba(218, 226, 253, 0.7)" />
             </View>
 
             <View style={styles.trackedBadge}>
               <ThemedText variant="labelSm" color="#FFFFFF">
-                {analytics.daysPassed} Days In
+                {analytics.daysRemaining} Days Left
               </ThemedText>
             </View>
           </View>
@@ -158,7 +175,7 @@ export default function TransactionsScreen() {
           <View style={styles.spendInsightBottom}>
             <View>
               <ThemedText variant="bodySm" color="rgba(255,255,255,0.7)">
-                Current Spend
+                Total Spent
               </ThemedText>
               <ThemedText
                 variant="displayHeroSm"
@@ -171,7 +188,7 @@ export default function TransactionsScreen() {
 
             <View style={{ alignItems: 'flex-end' }}>
               <ThemedText variant="bodySm" color="rgba(255,255,255,0.7)">
-                Burn Pace
+                Daily Average
               </ThemedText>
               <ThemedText
                 variant="headlineSm"
@@ -189,7 +206,7 @@ export default function TransactionsScreen() {
               </ThemedText>
             </View>
           </View>
-        </View>
+        </Pressable>
 
         {/* Omni-Search & Filter Bar */}
         <View style={styles.searchSection}>
@@ -310,11 +327,12 @@ export default function TransactionsScreen() {
                   {group.items.map((tx, idx) => {
                     const isExpense = tx.type === 'expense';
                     const isLast = idx === group.items.length - 1;
+                    const convertedAmount = convertCurrency(tx.amount, tx.currency || 'USD', currency);
 
                     return (
                       <Pressable
                         key={tx.id}
-                        onLongPress={() => handleDelete(tx.id, tx.category, tx.amount)}
+                        onLongPress={() => handleDelete(tx.id, tx.category, convertedAmount)}
                         style={({ pressed }) => [
                           styles.itemRow,
                           {
@@ -356,8 +374,8 @@ export default function TransactionsScreen() {
                                 style={{ fontWeight: '700', marginLeft: spacing.xs }}
                               >
                                 {isExpense
-                                  ? `-${formatCurrency(tx.amount, currency)}`
-                                  : `+${formatCurrency(tx.amount, currency)}`}
+                                  ? `-${formatCurrency(convertedAmount, currency)}`
+                                  : `+${formatCurrency(convertedAmount, currency)}`}
                               </ThemedText>
                             </View>
 
@@ -394,6 +412,14 @@ export default function TransactionsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Date Interval Selector Modal */}
+      <DateIntervalModal
+        visible={intervalModalVisible}
+        currentInterval={dateInterval}
+        onSelectInterval={(inv) => setDateInterval(inv)}
+        onClose={() => setIntervalModalVisible(false)}
+      />
     </View>
   );
 }
