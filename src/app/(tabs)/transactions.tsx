@@ -20,22 +20,13 @@ import { Card } from '@/components/Card';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 
-const FILTER_CATEGORIES = [
-  'All',
-  'Food & Dining',
-  'Shopping & Tech',
-  'Housing & Utilities',
-  'Entertainment',
-  'Transport',
-  'Health & Wellness',
-  'Income',
-];
 
 export default function TransactionsScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const {
     transactions,
+    budgets,
     analytics,
     currency,
     deleteTransaction,
@@ -43,6 +34,11 @@ export default function TransactionsScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const filterCategories = useMemo(() => {
+    const list = ['All', ...budgets.map((b) => b.category), 'Income'];
+    return Array.from(new Set(list));
+  }, [budgets]);
 
   // Filter transactions
   const filtered = useMemo(() => {
@@ -231,7 +227,7 @@ export default function TransactionsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryChipsList}
         >
-          {FILTER_CATEGORIES.map((cat) => {
+          {filterCategories.map((cat) => {
             const isSelected = selectedCategory === cat;
             return (
               <Pressable

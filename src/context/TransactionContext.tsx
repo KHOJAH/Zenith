@@ -14,6 +14,7 @@ interface TransactionContextType {
   toggleBalanceVisibility: () => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at'>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
+  addCustomCategory: (categoryName: string, monthlyLimit?: number, icon?: string) => Promise<void>;
   clearAll: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -58,6 +59,18 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     await refresh();
   };
 
+  const addCustomCategory = async (categoryName: string, monthlyLimit = 300, icon = 'tag') => {
+    const trimmed = categoryName.trim();
+    if (!trimmed) return;
+    await db.addBudgetCategory({
+      category: trimmed,
+      monthly_limit: monthlyLimit,
+      icon,
+      subtitle: 'Custom category',
+    });
+    await refresh();
+  };
+
   const clearAll = async () => {
     await db.clearAllTransactions();
     await refresh();
@@ -82,6 +95,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         toggleBalanceVisibility,
         addTransaction,
         deleteTransaction,
+        addCustomCategory,
         clearAll,
         refresh,
       }}

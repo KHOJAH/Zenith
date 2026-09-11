@@ -137,6 +137,14 @@ export async function getBudgets(): Promise<BudgetCategory[]> {
   return await db.getAllAsync<BudgetCategory>('SELECT * FROM budgets ORDER BY monthly_limit DESC');
 }
 
+export async function addBudgetCategory(category: BudgetCategory): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO budgets (category, monthly_limit, icon, subtitle) VALUES (?, ?, ?, ?)`,
+    [category.category, category.monthly_limit, category.icon, category.subtitle]
+  );
+}
+
 export async function updateBudgetLimit(category: string, newLimit: number): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('UPDATE budgets SET monthly_limit = ? WHERE category = ?', [newLimit, category]);

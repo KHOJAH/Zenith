@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   ScrollView,
   TextInput,
   Pressable,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -18,9 +20,9 @@ import { radius } from '@/theme/radius';
 import { ThemedText } from '@/components/ThemedText';
 import { Card } from '@/components/Card';
 import { Header } from '@/components/Header';
-import { NumericKeypad } from '@/components/NumericKeypad';
 import { CategoryGrid } from '@/components/CategoryGrid';
 import { CurrencyModal } from '@/components/CurrencyModal';
+import { AddCategoryModal } from '@/components/AddCategoryModal';
 import { Button } from '@/components/Button';
 
 const PAYMENT_METHODS = ['Card', 'Cash', 'Bank Transfer', 'Apple / Google Pay'];
@@ -28,10 +30,16 @@ const PAYMENT_METHODS = ['Card', 'Cash', 'Bank Transfer', 'Apple / Google Pay'];
 export default function QuickAddScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { addTransaction, currency, setCurrency } = useTransactions();
+  const {
+    addTransaction,
+    budgets,
+    addCustomCategory,
+    currency,
+    setCurrency,
+  } = useTransactions();
 
   const [flowType, setFlowType] = useState<TransactionType>('expense');
-  const [rawAmount, setRawAmount] = useState<string>('0');
+  const [rawAmount, setRawAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('Food & Dining');
   const [merchant, setMerchant] = useState<string>('');
   const [note, setNote] = useState<string>('');
@@ -39,41 +47,25 @@ export default function QuickAddScreen() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [addCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
 
-  // Blinking caret effect
-  const [cursorVisible, setCursorVisible] = useState(true);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCursorVisible((v) => !v);
-    }, 600);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleKeyPress = (key: string) => {
-    if (key === '.') {
-      if (!rawAmount.includes('.')) {
-        setRawAmount((prev) => (prev === '0' ? '0.' : prev + '.'));
-      }
-    } else {
-      setRawAmount((prev) => {
-        if (prev === '0') return key;
-        const parts = prev.split('.');
-        if (parts[1] && parts[1].length >= 2) return prev; // max 2 decimals
-        if (prev.length >= 8) return prev;
-        return prev + key;
-      });
-    }
-  };
-
-  const handleBackspace = () => {
-    setRawAmount((prev) => {
-      if (prev.length <= 1) return '0';
-      return prev.slice(0, -1);
-    });
-  };
+  const amountInputRef = useRef<TextInput>(null);
 
   const currentCurrencyInfo = getCurrencyInfo(currency);
   const currencySymbol = currentCurrencyInfo.symbol;
+
+  const handleAmountChange = (text: string) => {
+    // Sanitize input: allow only digits and single decimal point with up to 2 decimal places
+    let cleaned = text.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      cleaned = `${parts[0]}.${parts.slice(1).join('')}`;
+    }
+    if (parts[1] && parts[1].length > 2) {
+      cleaned = `${parts[0]}.${parts[1].slice(0, 2)}`;
+    }
+    setRawAmount(cleaned);
+  };
 
   const handleSave = async () => {
     const numAmount = parseFloat(rawAmount);
@@ -81,6 +73,7 @@ export default function QuickAddScreen() {
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       } catch {}
+      amountInputRef.current?.focus();
       return;
     }
 
@@ -106,7 +99,7 @@ export default function QuickAddScreen() {
       setTimeout(() => {
         setIsSaving(false);
         setSavedSuccess(false);
-        setRawAmount('0');
+        setRawAmount('');
         setMerchant('');
         setNote('');
         router.push('/(tabs)');
@@ -117,6 +110,11 @@ export default function QuickAddScreen() {
     }
   };
 
+  const categoriesList = budgets.map((b) => ({
+    category: b.category,
+    icon: b.icon,
+  }));
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
@@ -126,249 +124,281 @@ export default function QuickAddScreen() {
         onBack={() => router.push('/(tabs)')}
       />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
-        {/* Transaction Type Segmented Bar */}
-        <View
-          style={[
-            styles.typeSelector,
-            { backgroundColor: colors.surfaceContainerLow },
-          ]}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {(['expense', 'income', 'transfer'] as const).map((type) => {
-            const isSelected = flowType === type;
-            return (
-              <Pressable
-                key={type}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                onPress={() => setFlowType(type)}
-                style={[
-                  styles.typeBtn,
-                  isSelected && {
-                    backgroundColor: isDark ? colors.secondary : colors.primary,
-                  },
-                ]}
-              >
-                <ThemedText
-                  variant="labelMd"
-                  color={
-                    isSelected
-                      ? isDark
-                        ? '#052E16'
-                        : colors.onPrimary
-                      : colors.textSecondary
-                  }
-                  style={{ textTransform: 'capitalize', fontWeight: isSelected ? '700' : '500' }}
-                >
-                  {type}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Hero Amount Display Area */}
-        <View style={styles.amountDisplayCard}>
-          {/* Currency Pill opening Currency Modal */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Change Currency"
-            onPress={() => setCurrencyModalVisible(true)}
-            style={({ pressed }) => [
-              styles.currencyPill,
-              {
-                backgroundColor: colors.surfaceContainer,
-                opacity: pressed ? 0.8 : 1,
-              },
+          {/* Transaction Type Segmented Control */}
+          <View
+            style={[
+              styles.typeSelector,
+              { backgroundColor: colors.surfaceContainerLow },
             ]}
           >
-            <ThemedText style={{ fontSize: 13 }}>
-              {currentCurrencyInfo.flag}
-            </ThemedText>
-            <ThemedText variant="labelSm" color={colors.text} style={{ fontWeight: '700' }}>
-              {currency} ({currencySymbol})
-            </ThemedText>
-            <Feather name="chevron-down" size={12} color={colors.textSecondary} />
-          </Pressable>
-
-          {/* Big Amount Number with Blinking Caret */}
-          <View style={styles.amountRow}>
-            <ThemedText
-              variant="displayHero"
-              color={colors.textSecondary}
-              style={styles.currencyPrefix}
-            >
-              {currencySymbol}
-            </ThemedText>
-            <ThemedText
-              variant="displayHero"
-              color={colors.text}
-              style={styles.amountValue}
-            >
-              {rawAmount}
-            </ThemedText>
-            <View
-              style={[
-                styles.blinkingCaret,
-                {
-                  backgroundColor: isDark ? colors.secondary : colors.primary,
-                  opacity: cursorVisible ? 1 : 0,
-                },
-              ]}
-            />
+            {(['expense', 'income', 'transfer'] as const).map((type) => {
+              const isSelected = flowType === type;
+              return (
+                <Pressable
+                  key={type}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  onPress={() => setFlowType(type)}
+                  style={[
+                    styles.typeBtn,
+                    isSelected && {
+                      backgroundColor: isDark ? colors.secondary : colors.primary,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    variant="labelMd"
+                    color={
+                      isSelected
+                        ? isDark
+                          ? '#052E16'
+                          : colors.onPrimary
+                        : colors.textSecondary
+                    }
+                    style={{ textTransform: 'capitalize', fontWeight: isSelected ? '700' : '500' }}
+                  >
+                    {type}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
           </View>
 
-          <ThemedText variant="bodySm" color={colors.textSecondary}>
-            Zero latency • Stored locally
-          </ThemedText>
-        </View>
+          {/* Hero Amount Area with Native Device Number Pad */}
+          <Pressable
+            onPress={() => amountInputRef.current?.focus()}
+            style={styles.amountDisplayCard}
+          >
+            {/* Currency Pill opening Currency Modal */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Change Currency"
+              onPress={() => setCurrencyModalVisible(true)}
+              style={({ pressed }) => [
+                styles.currencyPill,
+                {
+                  backgroundColor: colors.surfaceContainer,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <ThemedText style={{ fontSize: 13 }}>
+                {currentCurrencyInfo.flag}
+              </ThemedText>
+              <ThemedText variant="labelSm" color={colors.text} style={{ fontWeight: '700' }}>
+                {currency} ({currencySymbol})
+              </ThemedText>
+              <Feather name="chevron-down" size={12} color={colors.textSecondary} />
+            </Pressable>
 
-        {/* Category Grid (for expense/transfer) */}
-        {flowType !== 'income' && (
+            {/* Native Numpad Input Display */}
+            <View style={styles.amountInputRow}>
+              <ThemedText
+                variant="displayHero"
+                color={colors.textSecondary}
+                style={styles.currencyPrefix}
+              >
+                {currencySymbol}
+              </ThemedText>
+              <TextInput
+                ref={amountInputRef}
+                style={[
+                  styles.nativeAmountInput,
+                  { color: colors.text },
+                ]}
+                placeholder="0.00"
+                placeholderTextColor={colors.textTertiary}
+                value={rawAmount}
+                onChangeText={handleAmountChange}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                selectTextOnFocus
+              />
+            </View>
+
+            <ThemedText variant="bodySm" color={colors.textSecondary}>
+              Tap to enter amount via native keyboard
+            </ThemedText>
+          </Pressable>
+
+          {/* Category Grid (with + Custom category support) */}
+          {flowType !== 'income' && (
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionHeaderRow}>
+                <ThemedText
+                  variant="labelSm"
+                  color={colors.textSecondary}
+                  style={styles.sectionHeader}
+                >
+                  CATEGORY
+                </ThemedText>
+                <Pressable onPress={() => setAddCategoryModalVisible(true)}>
+                  <ThemedText variant="labelSm" color={colors.secondary} style={{ fontWeight: '700' }}>
+                    + New
+                  </ThemedText>
+                </Pressable>
+              </View>
+
+              <CategoryGrid
+                categories={categoriesList}
+                selectedCategory={category}
+                onSelectCategory={(cat) => setCategory(cat)}
+                onAddNewCategory={() => setAddCategoryModalVisible(true)}
+              />
+            </View>
+          )}
+
+          {/* Payee / Merchant Field */}
           <View style={styles.sectionBlock}>
             <ThemedText
               variant="labelSm"
               color={colors.textSecondary}
               style={styles.sectionHeader}
             >
-              CATEGORY
+              {flowType === 'income' ? 'PAYEE / SOURCE' : 'PAYEE / MERCHANT'}
             </ThemedText>
-            <CategoryGrid
-              selectedCategory={category}
-              onSelectCategory={(cat) => setCategory(cat)}
+
+            <Card padding="sm" style={styles.merchantCard} bordered={false}>
+              <View style={styles.inputRow}>
+                <Feather name="user-check" size={18} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.textInput, { color: colors.text }]}
+                  placeholder={
+                    flowType === 'income'
+                      ? 'e.g. Salary, Client Payout'
+                      : 'e.g. Grocery Store, Coffee, Rent'
+                  }
+                  placeholderTextColor={colors.textTertiary}
+                  value={merchant}
+                  onChangeText={setMerchant}
+                />
+                {merchant.length > 0 && (
+                  <Pressable onPress={() => setMerchant('')}>
+                    <Feather name="x-circle" size={16} color={colors.textSecondary} />
+                  </Pressable>
+                )}
+              </View>
+            </Card>
+          </View>
+
+          {/* Payment Method Selector */}
+          <View style={styles.sectionBlock}>
+            <ThemedText
+              variant="labelSm"
+              color={colors.textSecondary}
+              style={styles.sectionHeader}
+            >
+              PAYMENT METHOD
+            </ThemedText>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.paymentMethodList}
+            >
+              {PAYMENT_METHODS.map((method) => {
+                const isSelected = paymentMethod === method;
+                return (
+                  <Pressable
+                    key={method}
+                    onPress={() => setPaymentMethod(method)}
+                    style={({ pressed }) => [
+                      styles.methodPill,
+                      {
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? colors.secondary
+                            : colors.primary
+                          : colors.surfaceContainerLow,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      variant="labelMd"
+                      color={
+                        isSelected
+                          ? isDark
+                            ? '#052E16'
+                            : colors.onPrimary
+                          : colors.textSecondary
+                      }
+                      style={{ fontWeight: isSelected ? '700' : '500' }}
+                    >
+                      {method}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Optional Note */}
+          <Card padding="sm" style={styles.noteCard} bordered={false}>
+            <Feather name="edit-3" size={16} color={colors.textSecondary} />
+            <TextInput
+              style={[styles.textInput, { color: colors.text }]}
+              placeholder="Add optional note..."
+              placeholderTextColor={colors.textTertiary}
+              value={note}
+              onChangeText={setNote}
+            />
+            {note.length > 0 && (
+              <Pressable onPress={() => setNote('')}>
+                <Feather name="x" size={16} color={colors.textSecondary} />
+              </Pressable>
+            )}
+          </Card>
+
+          {/* Submit CTA */}
+          <View style={styles.saveContainer}>
+            <Button
+              title={
+                savedSuccess
+                  ? 'Recorded!'
+                  : isSaving
+                  ? 'Saving...'
+                  : `Save ${flowType === 'income' ? 'Income' : 'Expense'} (${currencySymbol} ${rawAmount || '0.00'})`
+              }
+              size="lg"
+              variant="primary"
+              loading={isSaving}
+              onPress={handleSave}
+              icon={
+                savedSuccess ? (
+                  <Feather name="check" size={20} color={colors.onPrimary} />
+                ) : undefined
+              }
             />
           </View>
-        )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-        {/* Merchant / Payee Field */}
-        <View style={styles.sectionBlock}>
-          <ThemedText
-            variant="labelSm"
-            color={colors.textSecondary}
-            style={styles.sectionHeader}
-          >
-            {flowType === 'income' ? 'PAYEE / SOURCE' : 'MERCHANT / PAYEE'}
-          </ThemedText>
-
-          <Card padding="sm" style={styles.merchantCard} bordered={false}>
-            <View style={styles.inputRow}>
-              <Feather name="user-check" size={18} color={colors.textSecondary} />
-              <TextInput
-                style={[styles.textInput, { color: colors.text }]}
-                placeholder={flowType === 'income' ? 'e.g. Salary, Client Payout' : 'e.g. Grocery Store, Coffee, Rent'}
-                placeholderTextColor={colors.textTertiary}
-                value={merchant}
-                onChangeText={setMerchant}
-              />
-              {merchant.length > 0 && (
-                <Pressable onPress={() => setMerchant('')}>
-                  <Feather name="x-circle" size={16} color={colors.textSecondary} />
-                </Pressable>
-              )}
-            </View>
-          </Card>
-        </View>
-
-        {/* Payment Method Selector */}
-        <View style={styles.sectionBlock}>
-          <ThemedText
-            variant="labelSm"
-            color={colors.textSecondary}
-            style={styles.sectionHeader}
-          >
-            PAYMENT METHOD
-          </ThemedText>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.paymentMethodList}>
-            {PAYMENT_METHODS.map((method) => {
-              const isSelected = paymentMethod === method;
-              return (
-                <Pressable
-                  key={method}
-                  onPress={() => setPaymentMethod(method)}
-                  style={({ pressed }) => [
-                    styles.methodPill,
-                    {
-                      backgroundColor: isSelected
-                        ? isDark
-                          ? colors.secondary
-                          : colors.primary
-                        : colors.surfaceContainerLow,
-                      opacity: pressed ? 0.8 : 1,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    variant="labelMd"
-                    color={isSelected ? (isDark ? '#052E16' : colors.onPrimary) : colors.textSecondary}
-                    style={{ fontWeight: isSelected ? '700' : '500' }}
-                  >
-                    {method}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Optional Note */}
-        <Card padding="sm" style={styles.noteCard} bordered={false}>
-          <Feather name="edit-3" size={16} color={colors.textSecondary} />
-          <TextInput
-            style={[styles.textInput, { color: colors.text }]}
-            placeholder="Add optional note..."
-            placeholderTextColor={colors.textTertiary}
-            value={note}
-            onChangeText={setNote}
-          />
-          {note.length > 0 && (
-            <Pressable onPress={() => setNote('')}>
-              <Feather name="x" size={16} color={colors.textSecondary} />
-            </Pressable>
-          )}
-        </Card>
-
-        {/* Ergonomic Tactile Numeric Keypad */}
-        <View style={styles.keypadContainer}>
-          <NumericKeypad
-            onPressKey={handleKeyPress}
-            onBackspace={handleBackspace}
-          />
-        </View>
-
-        {/* Full-width High-contrast Save Button */}
-        <View style={styles.saveContainer}>
-          <Button
-            title={
-              savedSuccess
-                ? 'Recorded!'
-                : isSaving
-                ? 'Saving...'
-                : `Save ${flowType === 'income' ? 'Income' : 'Expense'} (${currencySymbol} ${rawAmount || '0.00'})`
-            }
-            size="lg"
-            variant="primary"
-            loading={isSaving}
-            onPress={handleSave}
-            icon={
-              savedSuccess ? (
-                <Feather name="check" size={20} color={colors.onPrimary} />
-              ) : undefined
-            }
-          />
-        </View>
-      </ScrollView>
-
-      {/* Currency Modal for selecting any world currency */}
+      {/* Currency Picker Modal */}
       <CurrencyModal
         visible={currencyModalVisible}
         selectedCode={currency}
         onSelect={(code) => setCurrency(code)}
         onClose={() => setCurrencyModalVisible(false)}
+      />
+
+      {/* Add Custom Category Modal */}
+      <AddCategoryModal
+        visible={addCategoryModalVisible}
+        onClose={() => setAddCategoryModalVisible(false)}
+        onAddCategory={async (name, limit, icon) => {
+          await addCustomCategory(name, limit, icon);
+          setCategory(name);
+        }}
       />
     </View>
   );
@@ -380,7 +410,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.screenPadding,
-    paddingBottom: 110,
+    paddingBottom: 120,
     gap: spacing.md,
   },
   typeSelector: {
@@ -399,7 +429,7 @@ const styles = StyleSheet.create({
   amountDisplayCard: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
   },
   currencyPill: {
     flexDirection: 'row',
@@ -410,28 +440,34 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: spacing.xs,
   },
-  amountRow: {
+  amountInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: spacing.xs,
+    width: '100%',
   },
   currencyPrefix: {
-    fontSize: 32,
-    marginRight: 4,
+    fontSize: 36,
+    marginRight: 6,
   },
-  amountValue: {
-    fontSize: 44,
+  nativeAmountInput: {
+    fontSize: 48,
     fontWeight: '700',
-  },
-  blinkingCaret: {
-    width: 3,
-    height: 38,
-    borderRadius: 2,
-    marginLeft: 4,
+    minWidth: 120,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+    padding: 0,
+    margin: 0,
   },
   sectionBlock: {
     gap: spacing.xs,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
   },
   sectionHeader: {
     textTransform: 'uppercase',
@@ -448,7 +484,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    height: 40,
+    height: 42,
     fontSize: 15,
   },
   paymentMethodList: {
@@ -467,11 +503,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  keypadContainer: {
-    width: '100%',
-  },
   saveContainer: {
     width: '100%',
     paddingTop: spacing.xs,
+    marginTop: spacing.sm,
   },
 });

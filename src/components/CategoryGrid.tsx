@@ -6,43 +6,38 @@ import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { ThemedText } from './ThemedText';
 
-export interface CategoryOption {
-  id: string;
-  name: string;
-  iconName: string;
+export interface CategoryItem {
+  category: string;
+  icon?: string;
 }
 
-export const CATEGORIES: CategoryOption[] = [
-  { id: 'Food & Dining', name: 'Food & Dining', iconName: 'coffee' },
-  { id: 'Shopping & Tech', name: 'Shopping & Tech', iconName: 'shopping-bag' },
-  { id: 'Housing & Utilities', name: 'Housing & Utilities', iconName: 'home' },
-  { id: 'Entertainment', name: 'Entertainment', iconName: 'film' },
-  { id: 'Transport', name: 'Transport', iconName: 'navigation' },
-  { id: 'Health & Wellness', name: 'Health & Wellness', iconName: 'activity' },
-];
-
 interface CategoryGridProps {
+  categories: CategoryItem[];
   selectedCategory: string;
   onSelectCategory: (category: string) => void;
+  onAddNewCategory?: () => void;
 }
 
 export function CategoryGrid({
+  categories,
   selectedCategory,
   onSelectCategory,
+  onAddNewCategory,
 }: CategoryGridProps) {
   const { colors, isDark } = useTheme();
 
   return (
     <View style={styles.grid}>
-      {CATEGORIES.map((cat) => {
-        const isSelected = selectedCategory === cat.id || selectedCategory === cat.name;
+      {categories.map((cat) => {
+        const isSelected = selectedCategory === cat.category;
+        const iconName = cat.icon || 'tag';
 
         return (
           <Pressable
-            key={cat.id}
+            key={cat.category}
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
-            onPress={() => onSelectCategory(cat.name)}
+            onPress={() => onSelectCategory(cat.category)}
             style={({ pressed }) => [
               styles.card,
               {
@@ -70,7 +65,7 @@ export function CategoryGrid({
               ]}
             >
               <Feather
-                name={cat.iconName as any}
+                name={iconName as any}
                 size={16}
                 color={
                   isSelected
@@ -94,11 +89,40 @@ export function CategoryGrid({
               numberOfLines={1}
               style={{ fontWeight: isSelected ? '700' : '500', flex: 1 }}
             >
-              {cat.name.split(' ')[0]}
+              {cat.category.split(' ')[0]}
             </ThemedText>
           </Pressable>
         );
       })}
+
+      {/* Add Custom Category Button */}
+      {onAddNewCategory && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add Category"
+          onPress={onAddNewCategory}
+          style={({ pressed }) => [
+            styles.card,
+            styles.addCard,
+            {
+              backgroundColor: colors.surfaceContainerLow,
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+        >
+          <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainer }]}>
+            <Feather name="plus" size={16} color={colors.secondary} />
+          </View>
+          <ThemedText
+            variant="labelSm"
+            color={colors.secondary}
+            numberOfLines={1}
+            style={{ fontWeight: '700' }}
+          >
+            + Custom
+          </ThemedText>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -108,16 +132,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    justifyContent: 'space-between',
   },
   card: {
-    width: '31.5%',
+    width: '31.8%',
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs + 2,
     borderRadius: radius.md,
     gap: spacing.xs,
+  },
+  addCard: {
+    borderStyle: 'dashed',
   },
   iconWrap: {
     width: 28,
