@@ -158,8 +158,6 @@ export function DateIntervalModal({
     onClose();
   };
 
-  const daysArray = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), []);
-
   return (
     <Modal
       visible={visible}
@@ -398,51 +396,6 @@ export function DateIntervalModal({
                         })}
                       </View>
 
-                      {/* Complete 1-31 Day Grid for Instant 1-Tap Access */}
-                      <ThemedText variant="labelSm" color={colors.textSecondary} style={{ marginTop: spacing.xs }}>
-                        ALL DAYS (1–31):
-                      </ThemedText>
-                      <View style={styles.daysGrid}>
-                        {daysArray.map((d) => {
-                          const isCurrent = d === salaryDay;
-                          return (
-                            <Pressable
-                              key={d}
-                              onPress={() => handleDaySelect(d)}
-                              style={({ pressed }) => [
-                                styles.dayGridCell,
-                                {
-                                  backgroundColor: isCurrent
-                                    ? isDark
-                                      ? colors.secondary
-                                      : colors.primary
-                                    : colors.surface,
-                                  borderColor: isCurrent ? "transparent" : colors.border,
-                                  transform: [{ scale: pressed ? 0.88 : 1 }],
-                                },
-                              ]}
-                            >
-                              <ThemedText
-                                variant="bodySm"
-                                color={
-                                  isCurrent
-                                    ? isDark
-                                      ? "#052E16"
-                                      : colors.onPrimary
-                                    : colors.text
-                                }
-                                style={{
-                                  fontWeight: isCurrent ? "700" : "500",
-                                  fontSize: 12,
-                                }}
-                              >
-                                {d}
-                              </ThemedText>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-
                       {/* Live Cycle Summary Result */}
                       <View
                         style={[
@@ -610,20 +563,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: radius.md,
     borderWidth: 1,
-  },
-  daysGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 5,
-    marginTop: 2,
-  },
-  dayGridCell: {
-    width: "12.5%",
-    aspectRatio: 1,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   liveCycleCard: {
     padding: spacing.md,
