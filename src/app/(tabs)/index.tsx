@@ -4,13 +4,14 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOut, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
+import { Transaction } from '@/db/schema';
 import { formatCurrency, formatDateGroup } from '@/utils/formatters';
 import { convertCurrency } from '@/utils/currencies';
 import { spacing } from '@/theme/spacing';
@@ -20,6 +21,7 @@ import { Card } from '@/components/Card';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 import { DateIntervalModal } from '@/components/DateIntervalModal';
+import { TransactionDetailModal } from '@/components/TransactionDetailModal';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -32,32 +34,27 @@ export default function DashboardScreen() {
     dateInterval,
     setDateInterval,
     toggleBalanceVisibility,
-    clearAll,
   } = useTransactions();
 
   const [intervalModalVisible, setIntervalModalVisible] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   // Net worth is data-driven for the active interval
   const netWorth = analytics.netSavings;
 
-  const startMs = new Date(dateInterval.startDate).getTime();
-  const endMs = new Date(dateInterval.endDate).getTime();
+  // Filter interval transactions with normalized start and end boundaries
+  const start = new Date(dateInterval.startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(dateInterval.endDate);
+  end.setHours(23, 59, 59, 999);
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+
   const intervalTransactions = transactions.filter((tx) => {
     const t = new Date(tx.date).getTime();
     return t >= startMs && t <= endMs;
   });
   const recentTransactions = intervalTransactions.slice(0, 5);
-
-  const handleClear = () => {
-    Alert.alert(
-      'Reset All Records',
-      'Are you sure you want to delete all transactions and reset your ledger?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset', style: 'destructive', onPress: () => clearAll() },
-      ]
-    );
-  };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -87,18 +84,22 @@ export default function DashboardScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
       >
         {/* Dynamic Interval Badge */}
         <View style={styles.topRow}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Select Date Interval"
-            onPress={() => setIntervalModalVisible(true)}
+            onPress={() => {
+              try { Haptics.selectionAsync(); } catch {}
+              setIntervalModalVisible(true);
+            }}
             style={({ pressed }) => [
               styles.periodBadge,
               {
                 backgroundColor: colors.surfaceContainerLow,
-                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.95 : 1 }],
               },
             ]}
           >
@@ -117,7 +118,7 @@ export default function DashboardScreen() {
                   analytics.netSavings >= 0
                     ? isDark
                       ? 'rgba(16, 185, 129, 0.15)'
-                      : 'rgba(0, 108, 73, 0.1)'
+                      : 'rgba(5, 150, 105, 0.12)'
                     : colors.errorContainer,
               },
             ]}
@@ -146,7 +147,7 @@ export default function DashboardScreen() {
           style={[
             styles.heroCard,
             {
-              backgroundColor: isDark ? '#111726' : '#0F172A',
+              backgroundColor: isDark ? '#0A0E1A' : '#0F172A',
             },
           ]}
         >
@@ -161,8 +162,14 @@ export default function DashboardScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Toggle Balance Visibility"
-              onPress={toggleBalanceVisibility}
+              onPress={() => {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                toggleBalanceVisibility();
+              }}
               hitSlop={8}
+              style={({ pressed }) => [
+                { transform: [{ scale: pressed ? 0.92 : 1 }] },
+              ]}
             >
               <Feather
                 name={isBalanceHidden ? 'eye-off' : 'eye'}
@@ -254,7 +261,13 @@ export default function DashboardScreen() {
           <View style={styles.activityHeader}>
             <ThemedText variant="headlineSm">Recent Transactions</ThemedText>
             {intervalTransactions.length > 0 && (
-              <Pressable onPress={() => router.push('/(tabs)/transactions')}>
+              <Pressable
+                onPress={() => {
+                  try { Haptics.selectionAsync(); } catch {}
+                  router.push('/(tabs)/transactions');
+                }}
+                style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.95 : 1 }] }]}
+              >
                 <ThemedText variant="labelMd" color={colors.text}>
                   See all
                 </ThemedText>
@@ -287,12 +300,19 @@ export default function DashboardScreen() {
                     exiting={FadeOut.duration(150)}
                     layout={LinearTransition.duration(200)}
                   >
-                    <View
-                      style={[
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${tx.category}, ${formatCurrency(convertedAmount, currency)}`}
+                      onPress={() => {
+                        try { Haptics.selectionAsync(); } catch {}
+                        setSelectedTx(tx);
+                      }}
+                      style={({ pressed }) => [
                         styles.txRow,
                         {
                           borderBottomColor: colors.border,
                           borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                          backgroundColor: pressed ? colors.surfaceContainerLow : 'transparent',
                         },
                       ]}
                     >
@@ -354,7 +374,7 @@ export default function DashboardScreen() {
                           {tx.payment_method || 'Card'}
                         </ThemedText>
                       </View>
-                    </View>
+                    </Pressable>
                   </Animated.View>
                 );
               })}
@@ -369,6 +389,13 @@ export default function DashboardScreen() {
         currentInterval={dateInterval}
         onSelectInterval={(inv) => setDateInterval(inv)}
         onClose={() => setIntervalModalVisible(false)}
+      />
+
+      {/* Transaction Detail Modal */}
+      <TransactionDetailModal
+        visible={!!selectedTx}
+        transaction={selectedTx}
+        onClose={() => setSelectedTx(null)}
       />
     </View>
   );
@@ -395,6 +422,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm + 2,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     gap: spacing.xs,
   },
   statusBadge: {
@@ -403,6 +431,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     gap: 6,
   },
   statusDot: {
@@ -412,6 +441,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     borderRadius: radius.xxl,
+    borderCurve: 'continuous',
     padding: spacing.lg,
     overflow: 'hidden',
   },
@@ -434,6 +464,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: spacing.xs + 4,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     gap: 4,
   },
   matrixRow: {

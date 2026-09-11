@@ -1,25 +1,8 @@
-import { ViewStyle } from 'react-native';
-
-export const shadows: Record<string, ViewStyle> = {
-  sm: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  lg: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-};
+export const shadows = {
+  sm: { boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' },
+  md: { boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' },
+  lg: { boxShadow: '0 8px 24px rgba(0, 0, 0, 0.14)' },
+  card: { boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)' },
+  raised: { boxShadow: '0 4px 14px rgba(0, 0, 0, 0.10)' },
+  overlay: { boxShadow: '0 12px 32px rgba(0, 0, 0, 0.22)' },
+} as const;

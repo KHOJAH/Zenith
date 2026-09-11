@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
@@ -16,6 +17,7 @@ interface HeaderProps {
   showBack?: boolean;
   onBack?: () => void;
   rightAction?: React.ReactNode;
+  hideCurrency?: boolean;
 }
 
 export function Header({
@@ -24,6 +26,7 @@ export function Header({
   showBack = false,
   onBack,
   rightAction,
+  hideCurrency = false,
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark, toggleTheme } = useTheme();
@@ -48,12 +51,15 @@ export function Header({
           <View style={styles.leftRow}>
             {showBack && (
               <Pressable
-                onPress={onBack}
+                onPress={() => {
+                  try { Haptics.selectionAsync(); } catch {}
+                  onBack?.();
+                }}
                 style={({ pressed }) => [
                   styles.iconButton,
                   {
                     backgroundColor: colors.surfaceContainerLow,
-                    opacity: pressed ? 0.7 : 1,
+                    transform: [{ scale: pressed ? 0.94 : 1 }],
                     marginRight: spacing.xs,
                   },
                 ]}
@@ -96,37 +102,42 @@ export function Header({
             {rightAction}
 
             {/* Currency Picker Button */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Select Currency"
-              onPress={() => setCurrencyModalVisible(true)}
-              style={({ pressed }) => [
-                styles.currencyPill,
-                {
-                  backgroundColor: colors.surfaceContainerLow,
-                  borderColor: colors.border,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <ThemedText style={{ fontSize: 13 }}>
-                {currentCurrencyInfo.flag}
-              </ThemedText>
-              <ThemedText variant="labelSm" color={colors.text} style={{ fontWeight: '700' }}>
-                {currency}
-              </ThemedText>
-            </Pressable>
+            {!hideCurrency && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Select Currency"
+                onPress={() => setCurrencyModalVisible(true)}
+                style={({ pressed }) => [
+                  styles.currencyPill,
+                  {
+                    backgroundColor: colors.surfaceContainerLow,
+                    borderColor: colors.border,
+                    transform: [{ scale: pressed ? 0.95 : 1 }],
+                  },
+                ]}
+              >
+                <ThemedText style={{ fontSize: 13 }}>
+                  {currentCurrencyInfo.flag}
+                </ThemedText>
+                <ThemedText variant="labelSm" color={colors.text} style={{ fontWeight: '700' }}>
+                  {currency}
+                </ThemedText>
+              </Pressable>
+            )}
 
             {/* Theme Mode Toggle Button */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Toggle Theme"
-              onPress={toggleTheme}
+              onPress={() => {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                toggleTheme();
+              }}
               style={({ pressed }) => [
                 styles.iconButton,
                 {
                   backgroundColor: colors.surfaceContainerLow,
-                  opacity: pressed ? 0.7 : 1,
+                  transform: [{ scale: pressed ? 0.94 : 1 }],
                 },
               ]}
             >

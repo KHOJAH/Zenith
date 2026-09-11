@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Modal,
   View,
@@ -45,14 +45,13 @@ export function CustomDatePickerModal({
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
 
+  const [prevSelectedDate, setPrevSelectedDate] = useState(selectedDate);
   const [pickedDate, setPickedDate] = useState<Date>(selectedDate);
 
-  // Sync state when modal becomes visible
-  useEffect(() => {
-    if (visible) {
-      setPickedDate(selectedDate);
-    }
-  }, [visible, selectedDate]);
+  if (selectedDate !== prevSelectedDate) {
+    setPrevSelectedDate(selectedDate);
+    setPickedDate(selectedDate);
+  }
 
   const handlePreset = (presetDaysAgo: number) => {
     try { Haptics.selectionAsync(); } catch {}
@@ -271,13 +270,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   presetBtn: {
+    minHeight: 40,
+    justifyContent: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
+    borderCurve: "continuous",
   },
   calendarCard: {
     padding: spacing.md,
     borderRadius: radius.xl,
+    borderCurve: "continuous",
     borderWidth: 1,
     marginTop: spacing.xs,
   },

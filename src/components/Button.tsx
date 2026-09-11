@@ -69,9 +69,9 @@ export function Button({
   }
 
   const sizeStyles: Record<'sm' | 'md' | 'lg', ViewStyle> = {
-    sm: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
-    md: { paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.md },
-    lg: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
+    sm: { minHeight: 38, paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.sm + 4 },
+    md: { minHeight: 44, paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.md },
+    lg: { minHeight: 50, paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
   };
 
   return (
@@ -80,17 +80,19 @@ export function Button({
       accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       disabled={disabled || loading}
       onPress={handlePress}
+      hitSlop={size === 'sm' ? { top: 6, bottom: 6, left: 6, right: 6 } : undefined}
       style={({ pressed }) => [
         {
           backgroundColor: bg,
           borderRadius: radius.full,
+          borderCurve: 'continuous',
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
           borderWidth: variant === 'outline' ? 1 : 0,
           borderColor: borderCol,
-          opacity: disabled ? 0.4 : pressed ? 0.8 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
+          opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
+          transform: [{ scale: pressed ? 0.95 : 1 }],
           gap: spacing.xs,
         },
         sizeStyles[size],

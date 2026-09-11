@@ -8,8 +8,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CURRENCIES, CurrencyInfo } from '@/utils/currencies';
+import { CURRENCIES } from '@/utils/currencies';
 import { useTheme } from '@/context/ThemeContext';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
@@ -66,8 +67,17 @@ export function CurrencyModal({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close"
-            onPress={onClose}
-            style={[styles.closeBtn, { backgroundColor: colors.surfaceContainerLow }]}
+            onPress={() => {
+              try { Haptics.selectionAsync(); } catch {}
+              onClose();
+            }}
+            style={({ pressed }) => [
+              styles.closeBtn,
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                transform: [{ scale: pressed ? 0.94 : 1 }],
+              },
+            ]}
           >
             <Feather name="x" size={20} color={colors.text} />
           </Pressable>
@@ -93,7 +103,13 @@ export function CurrencyModal({
             autoFocus={false}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')}>
+            <Pressable
+              onPress={() => {
+                try { Haptics.selectionAsync(); } catch {}
+                setQuery('');
+              }}
+              hitSlop={8}
+            >
               <Feather name="x-circle" size={16} color={colors.textSecondary} />
             </Pressable>
           )}
@@ -109,7 +125,11 @@ export function CurrencyModal({
             const isSelected = item.code === selectedCode;
             return (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.code}, ${item.name}`}
+                accessibilityState={{ selected: isSelected }}
                 onPress={() => {
+                  try { Haptics.selectionAsync(); } catch {}
                   onSelect(item.code);
                   onClose();
                 }}
@@ -124,6 +144,7 @@ export function CurrencyModal({
                       ? colors.surfaceContainerLow
                       : 'transparent',
                     borderBottomColor: colors.border,
+                    transform: [{ scale: pressed ? 0.98 : 1 }],
                   },
                 ]}
               >
@@ -176,6 +197,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 46,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     gap: spacing.sm,
@@ -197,6 +219,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
   },
   leftInfo: {
     flexDirection: 'row',

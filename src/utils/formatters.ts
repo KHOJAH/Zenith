@@ -24,6 +24,7 @@ export function formatCurrency(
 
 export function formatDateGroup(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return 'Unknown Date';
   const now = new Date();
 
   const isToday =
@@ -52,6 +53,7 @@ export function formatDateGroup(dateStr: string): string {
 
 export function formatTime(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '--:--';
   let hours = date.getHours();
   const minutes = date.getMinutes();
   const ampm = hours >= 12 ? 'PM' : 'AM';

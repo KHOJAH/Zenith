@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import { spacing } from '@/theme/spacing';
@@ -55,6 +56,9 @@ export function AddCategoryModal({
   const handleSave = () => {
     const trimmed = categoryName.trim();
     if (!trimmed) return;
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
     onAddCategory(trimmed, selectedIcon);
     setCategoryName('');
     onClose();
@@ -92,8 +96,17 @@ export function AddCategoryModal({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close"
-              onPress={onClose}
-              style={[styles.closeBtn, { backgroundColor: colors.surfaceContainerLow }]}
+              onPress={() => {
+                try { Haptics.selectionAsync(); } catch {}
+                onClose();
+              }}
+              style={({ pressed }) => [
+                styles.closeBtn,
+                {
+                  backgroundColor: colors.surfaceContainerLow,
+                  transform: [{ scale: pressed ? 0.94 : 1 }],
+                },
+              ]}
             >
               <Feather name="x" size={20} color={colors.text} />
             </Pressable>
@@ -140,7 +153,12 @@ export function AddCategoryModal({
                   return (
                     <Pressable
                       key={icon}
-                      onPress={() => setSelectedIcon(icon)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Category icon ${icon}`}
+                      onPress={() => {
+                        try { Haptics.selectionAsync(); } catch {}
+                        setSelectedIcon(icon);
+                      }}
                       style={({ pressed }) => [
                         styles.iconBtn,
                         {
@@ -220,6 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 48,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     gap: spacing.sm,
@@ -239,6 +258,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },

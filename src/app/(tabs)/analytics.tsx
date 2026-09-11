@@ -4,12 +4,12 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
-import { formatCurrency, getCurrentMonthName } from '@/utils/formatters';
+import { formatCurrency } from '@/utils/formatters';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
 import { ThemedText } from '@/components/ThemedText';
@@ -19,6 +19,8 @@ import { DonutChart } from '@/components/DonutChart';
 import { WeeklyBarChart } from '@/components/WeeklyBarChart';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
+import { DateIntervalModal } from '@/components/DateIntervalModal';
+import { StatementExportModal } from '@/components/StatementExportModal';
 import { useRouter } from 'expo-router';
 
 export default function AnalyticsScreen() {
@@ -29,15 +31,11 @@ export default function AnalyticsScreen() {
     analytics,
     currency,
     dateInterval,
+    setDateInterval,
   } = useTransactions();
 
-  const handleExport = () => {
-    Alert.alert(
-      'Export Statement',
-      `Your ${dateInterval.label} financial summary statement has been prepared.`,
-      [{ text: 'OK' }]
-    );
-  };
+  const [intervalModalVisible, setIntervalModalVisible] = useState(false);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -76,15 +74,31 @@ export default function AnalyticsScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
       >
         {/* Interval Banner */}
         <View style={styles.topRow}>
-          <View style={[styles.periodBadge, { backgroundColor: colors.surfaceContainerLow }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Select Date Interval"
+            onPress={() => {
+              try { Haptics.selectionAsync(); } catch {}
+              setIntervalModalVisible(true);
+            }}
+            style={({ pressed }) => [
+              styles.periodBadge,
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                transform: [{ scale: pressed ? 0.95 : 1 }],
+              },
+            ]}
+          >
             <Feather name="calendar" size={14} color={colors.textSecondary} />
             <ThemedText variant="labelMd" style={{ fontWeight: '600' }}>
               {dateInterval.label}
             </ThemedText>
-          </View>
+            <Feather name="chevron-down" size={12} color={colors.textSecondary} />
+          </Pressable>
         </View>
 
         {transactions.length === 0 ? (
@@ -205,7 +219,11 @@ export default function AnalyticsScreen() {
                 </View>
               </View>
 
-              <WeeklyBarChart weeklyBurn={analytics.weeklyBurn} currency={currency} />
+              <WeeklyBarChart
+                weeklyBurn={analytics.weeklyBurn}
+                currency={currency}
+                dateInterval={dateInterval}
+              />
             </Card>
 
             {/* Savings Rate Banner */}
@@ -303,13 +321,34 @@ export default function AnalyticsScreen() {
                 title="Export Detailed Statement"
                 variant="outline"
                 size="md"
-                onPress={handleExport}
+                onPress={() => {
+                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                  setExportModalVisible(true);
+                }}
                 icon={<Feather name="download" size={16} color={colors.text} />}
               />
             </View>
           </>
         )}
       </ScrollView>
+
+      {/* Date Interval Modal */}
+      <DateIntervalModal
+        visible={intervalModalVisible}
+        currentInterval={dateInterval}
+        onSelectInterval={(inv) => setDateInterval(inv)}
+        onClose={() => setIntervalModalVisible(false)}
+      />
+
+      {/* Statement Export Modal */}
+      <StatementExportModal
+        visible={exportModalVisible}
+        dateInterval={dateInterval}
+        transactions={transactions}
+        analytics={analytics}
+        currency={currency}
+        onClose={() => setExportModalVisible(false)}
+      />
     </View>
   );
 }
@@ -335,6 +374,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm + 2,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     gap: spacing.xs,
   },
   insightCard: {
@@ -377,6 +417,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
   },
   runRateCard: {
     gap: spacing.sm,
@@ -392,6 +433,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.md,
     borderRadius: radius.xl,
+    borderCurve: 'continuous',
   },
   bannerIconWrap: {
     width: 44,
@@ -438,15 +480,18 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: spacing.xs + 2,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     marginTop: 2,
   },
   meterTrack: {
     height: 6,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   meterFill: {
     height: '100%',
     borderRadius: radius.full,
+    borderCurve: 'continuous',
   },
 });

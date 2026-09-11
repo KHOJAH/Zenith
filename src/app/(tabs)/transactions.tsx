@@ -25,6 +25,7 @@ import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 import { DateIntervalModal } from '@/components/DateIntervalModal';
 import { Button } from '@/components/Button';
+import { TransactionDetailModal } from '@/components/TransactionDetailModal';
 
 export default function TransactionsScreen() {
   const router = useRouter();
@@ -44,16 +45,21 @@ export default function TransactionsScreen() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [intervalModalVisible, setIntervalModalVisible] = useState(false);
   const [clearAllModalVisible, setClearAllModalVisible] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   const filterCategories = useMemo(() => {
     const list = ['All', ...categories.map((b) => b.category), 'Income'];
     return Array.from(new Set(list));
   }, [categories]);
 
-  // Filter transactions within selected date interval and query
+  // Filter transactions within selected date interval and query (inclusive of entire start and end days)
   const filtered = useMemo(() => {
-    const startMs = new Date(dateInterval.startDate).getTime();
-    const endMs = new Date(dateInterval.endDate).getTime();
+    const start = new Date(dateInterval.startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateInterval.endDate);
+    end.setHours(23, 59, 59, 999);
+    const startMs = start.getTime();
+    const endMs = end.getTime();
 
     return transactions.filter((tx) => {
       const txTime = new Date(tx.date).getTime();
@@ -154,11 +160,13 @@ export default function TransactionsScreen() {
               } catch {}
               setClearAllModalVisible(true);
             }}
+            hitSlop={8}
             style={({ pressed }) => [
               styles.clearAllBtn,
               {
                 backgroundColor: colors.surfaceContainerLow,
                 opacity: transactions.length === 0 ? 0.3 : pressed ? 0.7 : 1,
+                transform: [{ scale: pressed && transactions.length > 0 ? 0.94 : 1 }],
               },
             ]}
           >
@@ -174,17 +182,22 @@ export default function TransactionsScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
       >
         {/* Spend Insight Card */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Change Date Interval"
-          onPress={() => setIntervalModalVisible(true)}
+          onPress={() => {
+            try { Haptics.selectionAsync(); } catch {}
+            setIntervalModalVisible(true);
+          }}
           style={({ pressed }) => [
             styles.spendInsightCard,
             {
-              backgroundColor: isDark ? '#131A29' : '#131B2E',
-              opacity: pressed ? 0.9 : 1,
+              backgroundColor: isDark ? '#0D111A' : '#131B2E',
+              transform: [{ scale: pressed ? 0.96 : 1 }],
             },
           ]}
         >
@@ -380,6 +393,12 @@ export default function TransactionsScreen() {
                         layout={LinearTransition.duration(200)}
                       >
                         <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${tx.category}, ${formatCurrency(convertedAmount, currency)}`}
+                          onPress={() => {
+                            try { Haptics.selectionAsync(); } catch {}
+                            setSelectedTx(tx);
+                          }}
                           onLongPress={() => handleDelete(tx.id, tx.category, convertedAmount)}
                           style={({ pressed }) => [
                             styles.itemRow,
@@ -530,6 +549,13 @@ export default function TransactionsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Transaction Detail Modal */}
+      <TransactionDetailModal
+        visible={!!selectedTx}
+        transaction={selectedTx}
+        onClose={() => setSelectedTx(null)}
+      />
     </View>
   );
 }
@@ -545,6 +571,7 @@ const styles = StyleSheet.create({
   },
   spendInsightCard: {
     borderRadius: radius.xl,
+    borderCurve: 'continuous',
     padding: spacing.lg,
     overflow: 'hidden',
   },
@@ -563,6 +590,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   spendInsightBottom: {
@@ -578,6 +606,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 46,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     gap: spacing.sm,
@@ -596,6 +625,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs + 2,
     paddingHorizontal: spacing.md,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
   },
   groupsContainer: {
     gap: spacing.md,
@@ -611,6 +641,8 @@ const styles = StyleSheet.create({
   },
   groupCard: {
     overflow: 'hidden',
+    borderRadius: radius.xl,
+    borderCurve: 'continuous',
   },
   itemRow: {
     padding: spacing.md,
@@ -661,6 +693,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     borderRadius: radius.xl,
+    borderCurve: 'continuous',
     padding: spacing.xl,
     alignItems: 'center',
     borderWidth: 1,

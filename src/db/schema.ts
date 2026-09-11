@@ -14,7 +14,7 @@ export interface Transaction {
 }
 
 export interface DateInterval {
-  id: 'current_month' | 'last_30_days' | 'last_7_days' | 'custom';
+  id: 'salary_cycle' | 'current_month' | 'last_30_days' | 'last_7_days' | 'custom';
   label: string;
   startDate: string; // ISO or YYYY-MM-DD
   endDate: string;   // ISO or YYYY-MM-DD

@@ -3,6 +3,7 @@ import { Transaction, CategoryItem, DateInterval } from '@/db/schema';
 import * as db from '@/db/database';
 import { calculateMonthAnalytics, MonthAnalytics } from '@/utils/velocity';
 import { getItem, setItem, getJSON, setJSON, STORAGE_KEYS } from '@/utils/storage';
+import { getSalaryCycleDates } from '@/utils/salary';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -25,36 +26,50 @@ interface TransactionContextType {
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
+function getDefaultInterval(): DateInterval {
+  const now = new Date();
+  return {
+    id: 'current_month',
+    label: now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+    startDate: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString(),
+    endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString(),
+  };
+}
+
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currency, setCurrencyState] = useState<string>('USD');
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
-
-  // Initialize date interval to current month
-  const now = new Date();
-  const defaultInterval: DateInterval = {
-    id: 'current_month',
-    label: now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-    startDate: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString(),
-    endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString(),
-  };
-  const [dateInterval, setDateIntervalState] = useState<DateInterval>(defaultInterval);
+  const [dateInterval, setDateIntervalState] = useState<DateInterval>(getDefaultInterval);
 
   // Load persisted settings on mount
   useEffect(() => {
+    let isMounted = true;
     async function loadPersistedSettings() {
       try {
-        const [savedCurrency, savedHidden, savedInterval] = await Promise.all([
+        const [savedCurrency, savedHidden, savedInterval, savedSalaryDay] = await Promise.all([
           getItem(STORAGE_KEYS.CURRENCY, 'USD'),
           getItem(STORAGE_KEYS.BALANCE_HIDDEN, 'false'),
-          getJSON<DateInterval>(STORAGE_KEYS.DATE_INTERVAL, defaultInterval),
+          getJSON<DateInterval>(STORAGE_KEYS.DATE_INTERVAL, getDefaultInterval()),
+          getItem(STORAGE_KEYS.SALARY_DAY, '27'),
         ]);
 
+        if (!isMounted) return;
         if (savedCurrency) setCurrencyState(savedCurrency);
         if (savedHidden === 'true') setIsBalanceHidden(true);
-        if (savedInterval && savedInterval.startDate && savedInterval.endDate) {
+
+        if (savedInterval && savedInterval.id === 'salary_cycle') {
+          const day = parseInt(savedSalaryDay || '27', 10) || 27;
+          const cycle = getSalaryCycleDates(day);
+          setDateIntervalState({
+            id: 'salary_cycle',
+            label: cycle.label,
+            startDate: cycle.start.toISOString(),
+            endDate: cycle.endDate.toISOString(),
+          });
+        } else if (savedInterval && savedInterval.startDate && savedInterval.endDate) {
           setDateIntervalState(savedInterval);
         }
       } catch (err) {
@@ -63,6 +78,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
 
     loadPersistedSettings();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const setCurrency = useCallback((c: string) => {
@@ -85,7 +103,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   const refresh = useCallback(async () => {
     try {
-      setIsLoading(true);
       let [txList, catList] = await Promise.all([
         db.getTransactions(),
         db.getCategories(),
@@ -126,6 +143,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 

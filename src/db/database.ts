@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { Transaction, CategoryItem, BudgetCategory } from './schema';
+import { Transaction, CategoryItem } from './schema';
 
 export const DEFAULT_CATEGORIES: CategoryItem[] = [
   {

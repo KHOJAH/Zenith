@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { DateInterval } from '@/db/schema';
 import { useTheme } from '@/context/ThemeContext';
 import { formatCurrency } from '@/utils/formatters';
 import { spacing } from '@/theme/spacing';
@@ -14,25 +15,54 @@ interface WeeklyBarChartProps {
     week4: number;
   };
   currency?: string;
+  dateInterval?: DateInterval;
 }
 
-export function WeeklyBarChart({ weeklyBurn, currency = 'USD' }: WeeklyBarChartProps) {
+export function WeeklyBarChart({ weeklyBurn, currency = 'USD', dateInterval }: WeeklyBarChartProps) {
   const { colors, isDark } = useTheme();
 
-  const data = [
-    { label: 'W1', value: weeklyBurn.week1, isEst: false, isActive: false },
-    { label: 'W2', value: weeklyBurn.week2, isEst: false, isActive: false },
-    { label: 'W3', value: weeklyBurn.week3, isEst: false, isActive: true },
-    {
-      label: 'W4 (est)',
-      value:
-        weeklyBurn.week4 > 0
-          ? weeklyBurn.week4
-          : (weeklyBurn.week1 + weeklyBurn.week2 + weeklyBurn.week3) / 3 || 0,
-      isEst: true,
-      isActive: false,
-    },
-  ];
+  const [nowMs] = useState(() => Date.now());
+  let currentWeekIdx = 3;
+  let isPastInterval = false;
+
+  if (dateInterval) {
+    const startMs = new Date(dateInterval.startDate).getTime();
+    const end = new Date(dateInterval.endDate);
+    end.setHours(23, 59, 59, 999);
+    const endMs = end.getTime();
+
+    if (nowMs > endMs) {
+      // Historical interval completely in the past
+      isPastInterval = true;
+      currentWeekIdx = 3;
+    } else if (nowMs < startMs) {
+      // Future interval
+      currentWeekIdx = -1;
+    } else {
+      // Active ongoing interval
+      const progress = (nowMs - startMs) / Math.max(1, endMs - startMs);
+      currentWeekIdx = Math.min(3, Math.floor(progress * 4));
+    }
+  } else {
+    const currentDay = new Date(nowMs).getDate();
+    currentWeekIdx = Math.min(3, Math.floor((currentDay - 1) / 7));
+  }
+
+  const rawValues = [weeklyBurn.week1, weeklyBurn.week2, weeklyBurn.week3, weeklyBurn.week4];
+  const priorSum = rawValues.slice(0, Math.max(0, currentWeekIdx + 1)).reduce((a, b) => a + b, 0);
+  const priorAvg = priorSum / Math.max(1, currentWeekIdx + 1);
+
+  const data = rawValues.map((val, idx) => {
+    const isFuture = !isPastInterval && idx > currentWeekIdx;
+    const isEst = isFuture && val === 0 && priorAvg > 0;
+    const finalVal = isEst ? Math.round(priorAvg) : val;
+    return {
+      label: isEst ? `W${idx + 1} (est)` : `W${idx + 1}`,
+      value: finalVal,
+      isEst,
+      isActive: !isPastInterval && idx === currentWeekIdx,
+    };
+  });
 
   const maxVal = Math.max(...data.map((d) => d.value), 50);
 
@@ -130,6 +160,7 @@ const styles = StyleSheet.create({
     maxWidth: 52,
     borderTopLeftRadius: radius.md,
     borderTopRightRadius: radius.md,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   projectedCapLine: {

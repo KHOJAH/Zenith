@@ -140,6 +140,7 @@ export default function QuickAddScreen() {
         subtitle="Quick Add"
         showBack
         onBack={() => router.push('/(tabs)')}
+        hideCurrency
       />
 
       <KeyboardAvoidingView
@@ -150,6 +151,7 @@ export default function QuickAddScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
         >
           {/* Transaction Type Segmented Control */}
           <View
@@ -174,7 +176,7 @@ export default function QuickAddScreen() {
                     isSelected && {
                       backgroundColor: isDark ? colors.secondary : colors.primary,
                     },
-                    { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
                   <ThemedText
@@ -204,12 +206,15 @@ export default function QuickAddScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Change Currency"
-              onPress={() => setCurrencyModalVisible(true)}
+              onPress={() => {
+                try { Haptics.selectionAsync(); } catch {}
+                setCurrencyModalVisible(true);
+              }}
               style={({ pressed }) => [
                 styles.currencyPill,
                 {
                   backgroundColor: colors.surfaceContainer,
-                  opacity: pressed ? 0.8 : 1,
+                  transform: [{ scale: pressed ? 0.95 : 1 }],
                 },
               ]}
             >
@@ -248,7 +253,7 @@ export default function QuickAddScreen() {
             </View>
           </Pressable>
 
-          {/* Category Grid (with + Custom category support) */}
+          {/* Category Grid (with integrated + Custom category tile) */}
           {flowType !== 'income' && (
             <View style={styles.sectionBlock}>
               <View style={styles.sectionHeaderRow}>
@@ -259,18 +264,19 @@ export default function QuickAddScreen() {
                 >
                   CATEGORY
                 </ThemedText>
-                <Pressable onPress={() => setAddCategoryModalVisible(true)}>
-                  <ThemedText variant="labelSm" color={colors.secondary} style={{ fontWeight: '700' }}>
-                    + New
-                  </ThemedText>
-                </Pressable>
               </View>
 
               <CategoryGrid
                 categories={categoriesList}
                 selectedCategory={category}
-                onSelectCategory={(cat) => setCategory(cat)}
-                onAddNewCategory={() => setAddCategoryModalVisible(true)}
+                onSelectCategory={(cat) => {
+                  try { Haptics.selectionAsync(); } catch {}
+                  setCategory(cat);
+                }}
+                onAddNewCategory={() => {
+                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                  setAddCategoryModalVisible(true);
+                }}
               />
             </View>
           )}
@@ -298,7 +304,7 @@ export default function QuickAddScreen() {
                   isToday(selectedDate)
                     ? { backgroundColor: isDark ? colors.secondary : colors.primary }
                     : { backgroundColor: colors.surfaceContainerLow },
-                  { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
                 <ThemedText
@@ -330,7 +336,7 @@ export default function QuickAddScreen() {
                   isYesterday(selectedDate)
                     ? { backgroundColor: isDark ? colors.secondary : colors.primary }
                     : { backgroundColor: colors.surfaceContainerLow },
-                  { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
                 <ThemedText
@@ -361,7 +367,7 @@ export default function QuickAddScreen() {
                   !isToday(selectedDate) && !isYesterday(selectedDate)
                     ? { backgroundColor: isDark ? colors.secondary : colors.primary }
                     : { backgroundColor: colors.surfaceContainerLow },
-                  { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
                 <Feather
@@ -418,7 +424,10 @@ export default function QuickAddScreen() {
                     key={method}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
-                    onPress={() => setPaymentMethod(method)}
+                    onPress={() => {
+                      try { Haptics.selectionAsync(); } catch {}
+                      setPaymentMethod(method);
+                    }}
                     style={({ pressed }) => [
                       styles.methodPill,
                       {
@@ -427,7 +436,7 @@ export default function QuickAddScreen() {
                             ? colors.secondary
                             : colors.primary
                           : colors.surfaceContainerLow,
-                        transform: [{ scale: pressed ? 0.96 : 1 }],
+                        transform: [{ scale: pressed ? 0.95 : 1 }],
                       },
                     ]}
                   >
@@ -545,14 +554,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 3,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     marginTop: spacing.xs,
   },
   typeBtn: {
     flex: 1,
+    minHeight: 38,
     paddingVertical: spacing.xs + 2,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,
+    borderCurve: 'continuous',
   },
   amountDisplayCard: {
     alignItems: 'center',
@@ -562,9 +574,10 @@ const styles = StyleSheet.create({
   currencyPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.sm + 4,
     borderRadius: radius.full,
+    borderCurve: 'continuous',
     gap: 4,
     marginBottom: spacing.xs,
   },
@@ -607,12 +620,14 @@ const styles = StyleSheet.create({
   },
   datePill: {
     flex: 1,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.sm,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
   },
   customDatePill: {
     flex: 1.2,
@@ -623,16 +638,18 @@ const styles = StyleSheet.create({
   },
   methodPill: {
     flex: 1,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.sm,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
   },
   textInput: {
     flex: 1,
-    height: 42,
+    height: 44,
     fontSize: 15,
   },
   noteCard: {
@@ -640,6 +657,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderCurve: 'continuous',
   },
   saveContainer: {
     width: '100%',

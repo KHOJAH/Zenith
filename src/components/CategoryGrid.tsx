@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
@@ -34,29 +33,13 @@ function CategoryChip({
   isDark: boolean;
   onPress: () => void;
 }) {
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.94, { duration: 150 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { duration: 250 });
-  };
-
   return (
-    <Animated.View style={[styles.cardWrapper, animatedStyle]}>
+    <View style={styles.cardWrapper}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected }}
         onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={[
+        style={({ pressed }) => [
           styles.card,
           {
             backgroundColor: isSelected
@@ -66,6 +49,7 @@ function CategoryChip({
               : isDark
               ? colors.surfaceContainerLow
               : colors.surface,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
           },
         ]}
       >
@@ -103,13 +87,13 @@ function CategoryChip({
                 : colors.onPrimary
               : colors.text
           }
-          numberOfLines={1}
-          style={{ fontWeight: isSelected ? '700' : '500', flex: 1 }}
+          numberOfLines={2}
+          style={{ fontWeight: isSelected ? '700' : '500', flex: 1, fontSize: 11 }}
         >
-          {category.split(' ')[0]}
+          {category}
         </ThemedText>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -143,19 +127,21 @@ export function CategoryGrid({
       {/* Add Custom Category Button */}
       {onAddNewCategory && (
         <View style={styles.cardWrapper}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add Category"
-            onPress={onAddNewCategory}
-            style={({ pressed }) => [
-              styles.card,
-              styles.addCard,
-              {
-                backgroundColor: colors.surfaceContainerLow,
-                opacity: pressed ? 0.8 : 1,
-              },
-            ]}
-          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add Category"
+              onPress={onAddNewCategory}
+              style={({ pressed }) => [
+                styles.card,
+                styles.addCard,
+                {
+                  backgroundColor: colors.surfaceContainerLow,
+                  borderColor: colors.borderStrong,
+                  opacity: pressed ? 0.8 : 1,
+                  transform: [{ scale: pressed ? 0.95 : 1 }],
+                },
+              ]}
+            >
             <View style={[styles.iconWrap, { backgroundColor: colors.surfaceContainer }]}>
               <Feather name="plus" size={16} color={colors.secondary} />
             </View>
@@ -185,14 +171,17 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs + 2,
     paddingHorizontal: spacing.xs + 2,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     gap: spacing.xs,
   },
   addCard: {
+    borderWidth: 1,
     borderStyle: 'dashed',
   },
   iconWrap: {

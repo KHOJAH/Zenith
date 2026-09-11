@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 import { CategorySummary } from '@/db/schema';
@@ -10,7 +10,6 @@ import { spacing } from '@/theme/spacing';
 interface DonutChartProps {
   categorySummaries: CategorySummary[];
   totalSpent: number;
-  totalLimit?: number;
   currency?: string;
   size?: number;
 }
@@ -29,23 +28,34 @@ export function DonutChart({
   const center = size / 2;
 
   // Filter only categories with spend > 0
-  const activeCategories = categorySummaries.filter((c) => c.spent > 0);
-  const total = activeCategories.reduce((acc, c) => acc + c.spent, 0);
+  const activeCategories = useMemo(
+    () => categorySummaries.filter((c) => c.spent > 0),
+    [categorySummaries]
+  );
+  const total = useMemo(
+    () => activeCategories.reduce((acc, c) => acc + c.spent, 0),
+    [activeCategories]
+  );
 
-  // Pre-calculate segments
-  let cumulativeLength = 0;
-  const segments = activeCategories.map((cat) => {
-    const ratio = total > 0 ? cat.spent / total : 0;
-    const length = ratio * circumference;
-    const offset = -cumulativeLength;
-    cumulativeLength += length;
-    return {
-      category: cat.category,
-      color: cat.color,
-      length,
-      offset,
-    };
-  });
+  // Pre-calculate segments inside useMemo without mutating outer variables
+  const segments = useMemo(() => {
+    return activeCategories.map((cat, idx) => {
+      const ratio = total > 0 ? cat.spent / total : 0;
+      const length = ratio * circumference;
+      const priorLength = activeCategories
+        .slice(0, idx)
+        .reduce(
+          (sum, prev) => sum + (total > 0 ? (prev.spent / total) * circumference : 0),
+          0
+        );
+      return {
+        category: cat.category,
+        color: cat.color,
+        length,
+        offset: -priorLength,
+      };
+    });
+  }, [activeCategories, total, circumference]);
 
   return (
     <View style={styles.container}>
@@ -99,8 +109,8 @@ export function DonutChart({
         {categorySummaries.slice(0, 4).map((cat) => (
           <View key={cat.category} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: cat.color }]} />
-            <ThemedText variant="bodySm" color={colors.textSecondary} numberOfLines={1}>
-              {cat.category.split(' ')[0]} ({formatCurrency(cat.spent, currency)})
+            <ThemedText variant="bodySm" color={colors.textSecondary} numberOfLines={1} style={{ flex: 1 }}>
+              {cat.category} ({formatCurrency(cat.spent, currency)})
             </ThemedText>
           </View>
         ))}

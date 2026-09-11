@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Modal,
   View,
@@ -14,7 +14,8 @@ import { ThemedText } from "./ThemedText";
 import { Button } from "./Button";
 import { spacing } from "@/theme/spacing";
 import { radius } from "@/theme/radius";
-import { CalendarPicker } from "./CalendarPicker";
+import { getItem, setItem, STORAGE_KEYS } from "@/utils/storage";
+import { getSalaryCycleDates, getOrdinalSuffix } from "@/utils/salary";
 
 interface DateIntervalModalProps {
   visible: boolean;
@@ -28,9 +29,7 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
 
-function formatDateDisplay(d: Date): string {
-  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
-}
+const POPULAR_SALARY_DAYS = [1, 15, 20, 25, 27, 28, 30];
 
 export function DateIntervalModal({
   visible,
@@ -40,27 +39,74 @@ export function DateIntervalModal({
 }: DateIntervalModalProps) {
   const { colors, isDark } = useTheme();
 
-  const [selectedType, setSelectedType] = useState<DateInterval["id"]>(currentInterval.id);
-
-  // Custom start and end dates state
-  const [customStart, setCustomStart] = useState<Date>(
-    new Date(currentInterval.startDate)
-  );
-  const [customEnd, setCustomEnd] = useState<Date>(
-    new Date(currentInterval.endDate)
+  const [selectedType, setSelectedType] = useState<DateInterval["id"]>(
+    currentInterval.id === "custom" ? "salary_cycle" : currentInterval.id
   );
 
-  const getPresets = (): { id: DateInterval["id"]; label: string; sublabel: string; getDates: () => { start: Date; end: Date } }[] => {
+  const [salaryDay, setSalaryDay] = useState<number>(27);
+
+  // Load saved salary day
+  useEffect(() => {
+    getItem(STORAGE_KEYS.SALARY_DAY, "27").then((val) => {
+      const parsed = parseInt(val, 10);
+      if (parsed >= 1 && parsed <= 31) {
+        setSalaryDay(parsed);
+      }
+    });
+  }, []);
+
+  const handleDaySelect = (day: number) => {
+    const bounded = Math.max(1, Math.min(31, Math.round(day)));
+    setSalaryDay(bounded);
+    setItem(STORAGE_KEYS.SALARY_DAY, String(bounded));
+    try {
+      Haptics.selectionAsync();
+    } catch {}
+  };
+
+  const adjustDay = (delta: number) => {
+    let next = salaryDay + delta;
+    if (next < 1) next = 31;
+    if (next > 31) next = 1;
+    handleDaySelect(next);
+  };
+
+  const currentSalaryCycle = useMemo(() => {
+    return getSalaryCycleDates(salaryDay);
+  }, [salaryDay]);
+
+  const getPresets = (): {
+    id: DateInterval["id"];
+    label: string;
+    sublabel: string;
+    getDates: () => { start: Date; end: Date; label: string };
+  }[] => {
     const now = new Date();
     return [
       {
-        id: "current_month",
-        label: "This Month",
-        sublabel: `${MONTH_NAMES[now.getMonth()]} 1 – ${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`,
+        id: "salary_cycle",
+        label: "Salary Cycle",
+        sublabel: `${currentSalaryCycle.label} • Cycles on the ${getOrdinalSuffix(salaryDay)}`,
         getDates: () => ({
-          start: new Date(now.getFullYear(), now.getMonth(), 1),
-          end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+          start: currentSalaryCycle.start,
+          end: currentSalaryCycle.endDate,
+          label: currentSalaryCycle.label,
         }),
+      },
+      {
+        id: "current_month",
+        label: "Calendar Month",
+        sublabel: `${MONTH_NAMES[now.getMonth()]} 1 – ${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`,
+        getDates: () => {
+          const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+          const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+          const end = new Date(now.getFullYear(), now.getMonth(), lastDay, 23, 59, 59, 999);
+          return {
+            start,
+            end,
+            label: now.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+          };
+        },
       },
       {
         id: "last_30_days",
@@ -69,7 +115,10 @@ export function DateIntervalModal({
         getDates: () => {
           const s = new Date(now);
           s.setDate(now.getDate() - 30);
-          return { start: s, end: now };
+          s.setHours(0, 0, 0, 0);
+          const e = new Date(now);
+          e.setHours(23, 59, 59, 999);
+          return { start: s, end: e, label: "Last 30 Days" };
         },
       },
       {
@@ -79,23 +128,16 @@ export function DateIntervalModal({
         getDates: () => {
           const s = new Date(now);
           s.setDate(now.getDate() - 7);
-          return { start: s, end: now };
+          s.setHours(0, 0, 0, 0);
+          const e = new Date(now);
+          e.setHours(23, 59, 59, 999);
+          return { start: s, end: e, label: "Last 7 Days" };
         },
-      },
-      {
-        id: "custom",
-        label: "Custom Range",
-        sublabel: "Tap start and end dates on calendar",
-        getDates: () => ({ start: customStart, end: customEnd }),
       },
     ];
   };
 
-  const isCustomInvalid = selectedType === "custom" && customStart.getTime() > customEnd.getTime();
-
   const handleApply = () => {
-    if (isCustomInvalid) return;
-
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {}
@@ -105,17 +147,9 @@ export function DateIntervalModal({
 
     if (activePreset) {
       const dates = activePreset.getDates();
-      let label = activePreset.label;
-      if (selectedType === "current_month") {
-        const now = new Date();
-        label = now.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-      } else if (selectedType === "custom") {
-        label = `${customStart.getDate()} ${MONTH_NAMES[customStart.getMonth()]} – ${customEnd.getDate()} ${MONTH_NAMES[customEnd.getMonth()]}`;
-      }
-
       onSelectInterval({
         id: selectedType,
-        label,
+        label: dates.label,
         startDate: dates.start.toISOString(),
         endDate: dates.end.toISOString(),
       });
@@ -123,6 +157,8 @@ export function DateIntervalModal({
 
     onClose();
   };
+
+  const daysArray = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), []);
 
   return (
     <Modal
@@ -147,7 +183,7 @@ export function DateIntervalModal({
             <View>
               <ThemedText variant="headlineSm">Date Interval</ThemedText>
               <ThemedText variant="bodySm" color={colors.textSecondary}>
-                Choose timeframe for totals and analytics
+                Choose timeframe for totals and cash flow
               </ThemedText>
             </View>
             <Pressable
@@ -169,128 +205,278 @@ export function DateIntervalModal({
             {getPresets().map((item) => {
               const isSelected = selectedType === item.id;
               return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => {
-                    setSelectedType(item.id);
-                    try {
-                      Haptics.selectionAsync();
-                    } catch {}
-                  }}
-                  style={({ pressed }) => [
-                    styles.presetRow,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.surfaceContainerLow
-                        : "transparent",
-                      borderColor: isSelected
-                        ? colors.borderStrong
-                        : colors.border,
-                      transform: [{ scale: pressed ? 0.98 : 1 }],
-                    },
-                  ]}
-                >
-                  <View style={styles.presetLeft}>
+                <View key={item.id}>
+                  <Pressable
+                    onPress={() => {
+                      setSelectedType(item.id);
+                      try {
+                        Haptics.selectionAsync();
+                      } catch {}
+                    }}
+                    style={({ pressed }) => [
+                      styles.presetRow,
+                      {
+                        backgroundColor: isSelected
+                          ? colors.surfaceContainerLow
+                          : "transparent",
+                        borderColor: isSelected
+                          ? colors.borderStrong
+                          : colors.border,
+                        transform: [{ scale: pressed ? 0.98 : 1 }],
+                      },
+                    ]}
+                  >
+                    <View style={styles.presetLeft}>
+                      <View
+                        style={[
+                          styles.radioCircle,
+                          {
+                            borderColor: isSelected
+                              ? isDark
+                                ? colors.secondary
+                                : colors.primary
+                              : colors.borderStrong,
+                          },
+                        ]}
+                      >
+                        {isSelected && (
+                          <View
+                            style={[
+                              styles.radioInner,
+                              {
+                                backgroundColor: isDark
+                                  ? colors.secondary
+                                  : colors.primary,
+                              },
+                            ]}
+                          />
+                        )}
+                      </View>
+                      <View>
+                        <ThemedText variant="labelMd" style={{ fontWeight: isSelected ? "700" : "500" }}>
+                          {item.label}
+                        </ThemedText>
+                        <ThemedText variant="bodySm" color={colors.textSecondary}>
+                          {item.sublabel}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </Pressable>
+
+                  {/* Salary Day Configuration section inside Salary Cycle option */}
+                  {item.id === "salary_cycle" && isSelected && (
                     <View
                       style={[
-                        styles.radioCircle,
+                        styles.salaryConfigContainer,
                         {
-                          borderColor: isSelected
-                            ? isDark
-                              ? colors.secondary
-                              : colors.primary
-                            : colors.borderStrong,
+                          backgroundColor: colors.surfaceContainerLow,
+                          borderColor: colors.border,
                         },
                       ]}
                     >
-                      {isSelected && (
+                      <View style={styles.salaryHeaderRow}>
+                        <Feather name="calendar" size={16} color={colors.secondary} />
+                        <ThemedText
+                          variant="labelSm"
+                          color={colors.secondary}
+                          style={styles.salarySectionTitle}
+                        >
+                          SET SALARY DAY (PAYDAY)
+                        </ThemedText>
+                      </View>
+
+                      {/* Prominent Stepper & Badge */}
+                      <View style={styles.stepperBadgeRow}>
+                        <Pressable
+                          onPress={() => adjustDay(-5)}
+                          style={({ pressed }) => [
+                            styles.stepperJumpBtn,
+                            { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                          ]}
+                        >
+                          <ThemedText variant="labelSm" color={colors.textSecondary}>
+                            -5d
+                          </ThemedText>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => adjustDay(-1)}
+                          style={({ pressed }) => [
+                            styles.stepperStepBtn,
+                            { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                          ]}
+                        >
+                          <Feather name="minus" size={16} color={colors.text} />
+                        </Pressable>
+
                         <View
                           style={[
-                            styles.radioInner,
+                            styles.dayHeroBadge,
                             {
-                              backgroundColor: isDark
-                                ? colors.secondary
-                                : colors.primary,
+                              backgroundColor: isDark ? colors.secondary : colors.primary,
                             },
                           ]}
-                        />
-                      )}
-                    </View>
-                    <View>
-                      <ThemedText variant="labelMd" style={{ fontWeight: isSelected ? "700" : "500" }}>
-                        {item.label}
+                        >
+                          <ThemedText
+                            variant="headlineMd"
+                            color={isDark ? "#052E16" : colors.onPrimary}
+                            style={{ fontWeight: "800" }}
+                          >
+                            {salaryDay}
+                          </ThemedText>
+                          <ThemedText
+                            variant="labelSm"
+                            color={isDark ? "#052E16" : colors.onPrimary}
+                            style={{ opacity: 0.9, fontWeight: "600", fontSize: 11 }}
+                          >
+                            {getOrdinalSuffix(salaryDay)} of month
+                          </ThemedText>
+                        </View>
+
+                        <Pressable
+                          onPress={() => adjustDay(1)}
+                          style={({ pressed }) => [
+                            styles.stepperStepBtn,
+                            { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                          ]}
+                        >
+                          <Feather name="plus" size={16} color={colors.text} />
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => adjustDay(5)}
+                          style={({ pressed }) => [
+                            styles.stepperJumpBtn,
+                            { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                          ]}
+                        >
+                          <ThemedText variant="labelSm" color={colors.textSecondary}>
+                            +5d
+                          </ThemedText>
+                        </Pressable>
+                      </View>
+
+                      {/* Quick Popular Payday Pills */}
+                      <ThemedText variant="labelSm" color={colors.textSecondary} style={{ marginTop: spacing.xs }}>
+                        POPULAR PAYDAYS:
                       </ThemedText>
-                      <ThemedText variant="bodySm" color={colors.textSecondary}>
-                        {item.sublabel}
+                      <View style={styles.quickPillsRow}>
+                        {POPULAR_SALARY_DAYS.map((d) => {
+                          const isCurrent = d === salaryDay;
+                          return (
+                            <Pressable
+                              key={d}
+                              onPress={() => handleDaySelect(d)}
+                              style={({ pressed }) => [
+                                styles.quickPill,
+                                {
+                                  backgroundColor: isCurrent
+                                    ? isDark
+                                      ? colors.secondary
+                                      : colors.primary
+                                    : colors.surface,
+                                  borderColor: isCurrent ? "transparent" : colors.border,
+                                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                                },
+                              ]}
+                            >
+                              <ThemedText
+                                variant="labelSm"
+                                color={
+                                  isCurrent
+                                    ? isDark
+                                      ? "#052E16"
+                                      : colors.onPrimary
+                                    : colors.text
+                                }
+                                style={{ fontWeight: isCurrent ? "700" : "500" }}
+                              >
+                                {getOrdinalSuffix(d)}
+                              </ThemedText>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+
+                      {/* Complete 1-31 Day Grid for Instant 1-Tap Access */}
+                      <ThemedText variant="labelSm" color={colors.textSecondary} style={{ marginTop: spacing.xs }}>
+                        ALL DAYS (1–31):
                       </ThemedText>
+                      <View style={styles.daysGrid}>
+                        {daysArray.map((d) => {
+                          const isCurrent = d === salaryDay;
+                          return (
+                            <Pressable
+                              key={d}
+                              onPress={() => handleDaySelect(d)}
+                              style={({ pressed }) => [
+                                styles.dayGridCell,
+                                {
+                                  backgroundColor: isCurrent
+                                    ? isDark
+                                      ? colors.secondary
+                                      : colors.primary
+                                    : colors.surface,
+                                  borderColor: isCurrent ? "transparent" : colors.border,
+                                  transform: [{ scale: pressed ? 0.88 : 1 }],
+                                },
+                              ]}
+                            >
+                              <ThemedText
+                                variant="bodySm"
+                                color={
+                                  isCurrent
+                                    ? isDark
+                                      ? "#052E16"
+                                      : colors.onPrimary
+                                    : colors.text
+                                }
+                                style={{
+                                  fontWeight: isCurrent ? "700" : "500",
+                                  fontSize: 12,
+                                }}
+                              >
+                                {d}
+                              </ThemedText>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+
+                      {/* Live Cycle Summary Result */}
+                      <View
+                        style={[
+                          styles.liveCycleCard,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <View style={styles.liveCycleHeader}>
+                          <ThemedText variant="labelSm" color={colors.textSecondary}>
+                            CURRENT CYCLE
+                          </ThemedText>
+                          <ThemedText
+                            variant="labelSm"
+                            color={colors.secondary}
+                            style={{ fontWeight: "700" }}
+                          >
+                            {currentSalaryCycle.daysRemaining} days left
+                          </ThemedText>
+                        </View>
+                        <ThemedText variant="headlineSm" style={{ fontWeight: "700", marginTop: 2 }}>
+                          {currentSalaryCycle.label}
+                        </ThemedText>
+                        <ThemedText variant="bodySm" color={colors.textTertiary} style={{ marginTop: 2 }}>
+                          Starts {currentSalaryCycle.start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · Ends {currentSalaryCycle.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </ThemedText>
+                      </View>
                     </View>
-                  </View>
-                </Pressable>
+                  )}
+                </View>
               );
             })}
-
-            {/* Custom Date Pickers when Custom Range is active */}
-            {selectedType === "custom" && (
-              <View
-                style={[
-                  styles.customContainer,
-                  { backgroundColor: colors.surfaceContainerLow, borderColor: colors.border },
-                ]}
-              >
-                <ThemedText
-                  variant="labelSm"
-                  color={colors.textSecondary}
-                  style={styles.customSectionTitle}
-                >
-                  TAP-TO-RANGE CALENDAR
-                </ThemedText>
-
-                {/* Range summary badges */}
-                <View style={styles.rangeBadgesRow}>
-                  <View style={[styles.rangeBadge, { backgroundColor: colors.surface }]}>
-                    <ThemedText variant="labelSm" color={colors.textSecondary}>
-                      START
-                    </ThemedText>
-                    <ThemedText variant="labelMd" style={{ fontWeight: "700" }}>
-                      {formatDateDisplay(customStart)}
-                    </ThemedText>
-                  </View>
-
-                  <Feather name="arrow-right" size={16} color={colors.textTertiary} />
-
-                  <View style={[styles.rangeBadge, { backgroundColor: colors.surface }]}>
-                    <ThemedText variant="labelSm" color={colors.textSecondary}>
-                      END
-                    </ThemedText>
-                    <ThemedText variant="labelMd" style={{ fontWeight: "700" }}>
-                      {formatDateDisplay(customEnd)}
-                    </ThemedText>
-                  </View>
-                </View>
-
-                {/* Calendar Range Picker */}
-                <View style={[styles.calendarCardWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <CalendarPicker
-                    mode="range"
-                    startDate={customStart}
-                    endDate={customEnd}
-                    onSelectRange={(start, end) => {
-                      setCustomStart(start);
-                      setCustomEnd(end);
-                    }}
-                  />
-                </View>
-
-                {isCustomInvalid && (
-                  <View style={[styles.invalidBanner, { backgroundColor: colors.errorContainer }]}>
-                    <Feather name="alert-circle" size={16} color={colors.error} />
-                    <ThemedText variant="bodySm" color={colors.error} style={{ fontWeight: "600" }}>
-                      Start date cannot be after end date
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-            )}
           </ScrollView>
 
           {/* Action Footer */}
@@ -299,7 +485,6 @@ export function DateIntervalModal({
               title="Apply Interval"
               variant="primary"
               size="lg"
-              disabled={isCustomInvalid}
               onPress={handleApply}
             />
           </View>
@@ -318,6 +503,7 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
+    borderCurve: "continuous",
     borderWidth: 1,
     padding: spacing.lg,
     maxHeight: "90%",
@@ -365,47 +551,92 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
   },
-  customContainer: {
+  salaryConfigContainer: {
+    padding: spacing.md,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    marginTop: spacing.xxs,
+    marginBottom: spacing.sm,
+    gap: spacing.xs,
+  },
+  salaryHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginBottom: spacing.xxs,
+  },
+  salarySectionTitle: {
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontWeight: "700",
+  },
+  stepperBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    marginVertical: spacing.xs,
+  },
+  stepperJumpBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperStepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayHeroBadge: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 110,
+  },
+  quickPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 2,
+  },
+  quickPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  daysGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 5,
+    marginTop: 2,
+  },
+  dayGridCell: {
+    width: "12.5%",
+    aspectRatio: 1,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  liveCycleCard: {
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
-    marginTop: spacing.xs,
-    gap: spacing.xs,
+    marginTop: spacing.sm,
   },
-  customSectionTitle: {
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: spacing.xxs,
-  },
-  rangeBadgesRow: {
+  liveCycleHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  rangeBadge: {
-    flex: 1,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    alignItems: "center",
-    gap: 2,
-  },
-  calendarCardWrap: {
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginTop: spacing.xxs,
   },
   footer: {
     paddingTop: spacing.xs,
-  },
-  invalidBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    marginTop: spacing.xs,
   },
 });

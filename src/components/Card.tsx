@@ -28,6 +28,7 @@ export function Card({
   const cardStyle: ViewStyle = {
     backgroundColor,
     borderRadius: radius.xl,
+    borderCurve: 'continuous',
     padding: spacing[padding],
     borderWidth: bordered ? StyleSheet.hairlineWidth : 0,
     borderColor: variant === 'hero' ? (isDark ? '#2D3748' : '#1E293B') : colors.border,

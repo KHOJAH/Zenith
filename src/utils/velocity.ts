@@ -104,27 +104,54 @@ export function calculateMonthAnalytics(
   // Daily velocity
   const dailyVelocity = Math.round((totalExpenses / Math.max(1, daysPassed)) * 100) / 100;
 
-  // Category color mapping
+  // Category color mapping - distinct vibrant palette visible on both Clean White and Obsidian OLED
   const categoryColors: Record<string, string> = {
-    'Housing & Utilities': '#000000',
-    'Food & Dining': '#10B981',
-    'Shopping & Tech': '#06B6D4',
-    'Entertainment': '#8B5CF6',
-    'Transport': '#F59E0B',
-    'Health & Wellness': '#EC4899',
-    'Other': '#64748B',
+    'Housing & Utilities': '#3B82F6', // Blue (never #000000 which is invisible on OLED Dark Mode)
+    'Food & Dining': '#10B981', // Emerald Mint
+    'Shopping & Tech': '#06B6D4', // Cyan
+    'Entertainment': '#8B5CF6', // Purple
+    'Transport': '#F59E0B', // Amber
+    'Health & Wellness': '#EC4899', // Pink
+    'Other': '#64748B', // Slate
   };
 
+  const customCategoryPalette = [
+    '#F97316', // Orange
+    '#14B8A6', // Teal
+    '#6366F1', // Indigo
+    '#A855F7', // Violet
+    '#E11D48', // Rose
+    '#84CC16', // Lime
+  ];
+
+  // Merge any extra categories found in transactions into category list
+  const knownCategories = new Set(categories.map((c) => c.category));
+  const mergedCategories: CategoryItem[] = [...categories];
+  for (const catName of Object.keys(categorySpentMap)) {
+    if (!knownCategories.has(catName)) {
+      mergedCategories.push({
+        category: catName,
+        icon: 'tag',
+        subtitle: 'Custom category',
+      });
+      knownCategories.add(catName);
+    }
+  }
+
   // Build category summaries: calculate each category's share of total expenses
-  const categorySummaries: CategorySummary[] = categories.map((c) => {
+  const categorySummaries: CategorySummary[] = mergedCategories.map((c, idx) => {
     const spent = Math.round((categorySpentMap[c.category] || 0) * 100) / 100;
     const percentage = totalExpenses > 0 ? Math.round((spent / totalExpenses) * 100) : 0;
+    const color =
+      categoryColors[c.category] ||
+      customCategoryPalette[idx % customCategoryPalette.length];
+
     return {
       category: c.category,
       spent,
       percentage,
       icon: c.icon,
-      color: categoryColors[c.category] || '#64748B',
+      color,
     };
   });
 

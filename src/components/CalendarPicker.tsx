@@ -68,18 +68,38 @@ export function CalendarPicker({
   const [currentMonth, setCurrentMonth] = useState<Date>(initialMonth);
 
   // For range mode, track temporary start date when user is picking second date
+  const [prevStartDate, setPrevStartDate] = useState(startDate);
+  const [prevEndDate, setPrevEndDate] = useState(endDate);
   const [rangeStart, setRangeStart] = useState<Date | null>(startDate || null);
   const [rangeEnd, setRangeEnd] = useState<Date | null>(endDate || null);
 
-  // Keep internal range in sync with props
-  React.useEffect(() => {
-    if (startDate) setRangeStart(startDate);
-    if (endDate) setRangeEnd(endDate);
-  }, [startDate, endDate]);
+  if (startDate !== prevStartDate || endDate !== prevEndDate) {
+    setPrevStartDate(startDate);
+    setPrevEndDate(endDate);
+    setRangeStart(startDate || null);
+    setRangeEnd(endDate || null);
+  }
 
   const today = useMemo(() => new Date(), []);
 
+  // Calendar calculations
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+
+  const isNextMonthDisabled = Boolean(
+    maxDate &&
+      (year > maxDate.getFullYear() ||
+        (year === maxDate.getFullYear() && month >= maxDate.getMonth()))
+  );
+  const isPrevMonthDisabled = Boolean(
+    minDate &&
+      (year < minDate.getFullYear() ||
+        (year === minDate.getFullYear() && month <= minDate.getMonth()))
+  );
+
   const changeMonth = (delta: number) => {
+    if (delta > 0 && isNextMonthDisabled) return;
+    if (delta < 0 && isPrevMonthDisabled) return;
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
     setCurrentMonth((prev) => {
       const next = new Date(prev);
@@ -92,10 +112,6 @@ export function CalendarPicker({
     try { Haptics.selectionAsync(); } catch {}
     setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
   };
-
-  // Calendar calculations
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 is Sunday
@@ -152,11 +168,11 @@ export function CalendarPicker({
   };
 
   const handleDayPress = (dayItem: { date: Date; isCurrentMonth: boolean }) => {
+    if (isDateDisabled(dayItem.date)) return;
+
     if (!dayItem.isCurrentMonth) {
       setCurrentMonth(new Date(dayItem.date.getFullYear(), dayItem.date.getMonth(), 1));
     }
-
-    if (isDateDisabled(dayItem.date)) return;
 
     try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
 
@@ -216,10 +232,16 @@ export function CalendarPicker({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Previous month"
+            accessibilityState={{ disabled: isPrevMonthDisabled }}
+            disabled={isPrevMonthDisabled}
             onPress={() => changeMonth(-1)}
             style={({ pressed }) => [
               styles.navBtn,
-              { backgroundColor: colors.surfaceContainerLow, transform: [{ scale: pressed ? 0.92 : 1 }] },
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                opacity: isPrevMonthDisabled ? 0.25 : 1,
+                transform: [{ scale: pressed && !isPrevMonthDisabled ? 0.92 : 1 }],
+              },
             ]}
           >
             <Feather name="chevron-left" size={18} color={colors.text} />
@@ -227,10 +249,16 @@ export function CalendarPicker({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Next month"
+            accessibilityState={{ disabled: isNextMonthDisabled }}
+            disabled={isNextMonthDisabled}
             onPress={() => changeMonth(1)}
             style={({ pressed }) => [
               styles.navBtn,
-              { backgroundColor: colors.surfaceContainerLow, transform: [{ scale: pressed ? 0.92 : 1 }] },
+              {
+                backgroundColor: colors.surfaceContainerLow,
+                opacity: isNextMonthDisabled ? 0.25 : 1,
+                transform: [{ scale: pressed && !isNextMonthDisabled ? 0.92 : 1 }],
+              },
             ]}
           >
             <Feather name="chevron-right" size={18} color={colors.text} />

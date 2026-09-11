@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   DATE_INTERVAL: 'zenith_date_interval',
   TRANSACTIONS_BACKUP: 'zenith_transactions_backup',
   CATEGORIES_BACKUP: 'zenith_categories_backup',
+  SALARY_DAY: 'zenith_salary_day',
 };
 
 // In-memory fallback cache

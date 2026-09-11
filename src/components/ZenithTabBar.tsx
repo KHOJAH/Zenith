@@ -55,8 +55,10 @@ export function ZenithTabBar({ state, descriptors, navigation }: any) {
                     styles.centerButton,
                     {
                       backgroundColor: isDark ? colors.secondary : colors.primary,
-                      transform: [{ scale: pressed ? 0.92 : 1 }],
-                      shadowColor: isDark ? colors.secondary : '#000000',
+                      transform: [{ scale: pressed ? 0.94 : 1 }],
+                      boxShadow: isDark
+                        ? '0 4px 16px rgba(16, 185, 129, 0.45)'
+                        : '0 4px 16px rgba(15, 23, 42, 0.28)',
                     },
                   ]}
                 >
@@ -93,7 +95,10 @@ export function ZenithTabBar({ state, descriptors, navigation }: any) {
               accessibilityRole="button"
               accessibilityState={{ selected: isFocused }}
               onPress={onPress}
-              style={styles.tabItem}
+              style={({ pressed }) => [
+                styles.tabItem,
+                { transform: [{ scale: pressed ? 0.95 : 1 }] },
+              ]}
             >
               <Feather
                 name={iconName}
@@ -124,8 +129,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopWidth: 1,
-    elevation: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    boxShadow: '0 -2px 12px rgba(0, 0, 0, 0.04)',
   },
   tabRow: {
     height: 60,
@@ -146,15 +151,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -20,
-    elevation: 4,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
   },
 });
