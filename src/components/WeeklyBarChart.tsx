@@ -19,7 +19,7 @@ interface WeeklyBarChartProps {
 }
 
 export function WeeklyBarChart({ weeklyBurn, currency = 'USD', dateInterval }: WeeklyBarChartProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const [nowMs] = useState(() => Date.now());
   let currentWeekIdx = 3;
@@ -79,7 +79,7 @@ export function WeeklyBarChart({ weeklyBurn, currency = 'USD', dateInterval }: W
             <View key={item.label} style={styles.barColumn}>
               <ThemedText
                 variant="labelSm"
-                color={item.isActive ? colors.primary : colors.textTertiary}
+                color={item.isActive ? colors.error : colors.textTertiary}
                 style={styles.amountLabel}
               >
                 {formatCurrency(Math.round(item.value), currency)}
@@ -92,9 +92,7 @@ export function WeeklyBarChart({ weeklyBurn, currency = 'USD', dateInterval }: W
                     {
                       height: `${heightPercent}%`,
                       backgroundColor: item.isActive
-                        ? isDark
-                          ? colors.secondary
-                          : colors.primary
+                        ? colors.error
                         : item.isEst
                         ? colors.surfaceContainer
                         : colors.surfaceContainerHigh,
@@ -105,7 +103,7 @@ export function WeeklyBarChart({ weeklyBurn, currency = 'USD', dateInterval }: W
                     <View
                       style={[
                         styles.projectedCapLine,
-                        { backgroundColor: colors.secondary },
+                        { backgroundColor: colors.error },
                       ]}
                     />
                   )}

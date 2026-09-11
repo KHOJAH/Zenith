@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeOut, FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
 import { Transaction } from '@/db/schema';
@@ -369,7 +369,7 @@ export default function TransactionsScreen() {
                   </ThemedText>
                   <ThemedText
                     variant="bodySm"
-                    color={group.netTotal >= 0 ? colors.secondary : colors.textSecondary}
+                    color={group.netTotal >= 0 ? colors.secondary : colors.error}
                     style={{ fontWeight: '600' }}
                   >
                     {group.netTotal >= 0
@@ -383,18 +383,20 @@ export default function TransactionsScreen() {
                   {group.items.map((tx, idx) => {
                     const isExpense = tx.type === 'expense';
                     const isLast = idx === group.items.length - 1;
-                    const convertedAmount = convertCurrency(tx.amount, tx.currency || 'USD', currency);
+                    const convertedAmount = convertCurrency(
+                      tx.amount,
+                      tx.currency || 'USD',
+                      currency
+                    );
 
                     return (
                       <Animated.View
                         key={tx.id}
-                        entering={FadeInDown.duration(200).delay(Math.min(idx * 25, 200))}
-                        exiting={FadeOut.duration(150)}
-                        layout={LinearTransition.duration(200)}
+                        layout={LinearTransition.springify().damping(15)}
                       >
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`${tx.category}, ${formatCurrency(convertedAmount, currency)}`}
+                          accessibilityLabel={`${tx.category}, ${tx.amount} ${tx.currency}`}
                           onPress={() => {
                             try { Haptics.selectionAsync(); } catch {}
                             setSelectedTx(tx);
@@ -419,14 +421,16 @@ export default function TransactionsScreen() {
                                   backgroundColor:
                                     tx.type === 'income'
                                       ? 'rgba(16, 185, 129, 0.15)'
-                                      : colors.surfaceContainerLow,
+                                      : isDark
+                                      ? 'rgba(239, 68, 68, 0.15)'
+                                      : 'rgba(220, 38, 38, 0.1)',
                                 },
                               ]}
                             >
                               <Feather
                                 name={getCategoryIcon(tx.category) as any}
                                 size={18}
-                                color={tx.type === 'income' ? colors.secondary : colors.text}
+                                color={tx.type === 'income' ? colors.secondary : colors.error}
                               />
                             </View>
 
@@ -437,7 +441,7 @@ export default function TransactionsScreen() {
                                 </ThemedText>
                                 <ThemedText
                                   variant="numericCurrency"
-                                  color={isExpense ? colors.text : colors.secondary}
+                                  color={isExpense ? colors.error : colors.secondary}
                                   style={{ fontWeight: '700', marginLeft: spacing.xs }}
                                 >
                                   {isExpense

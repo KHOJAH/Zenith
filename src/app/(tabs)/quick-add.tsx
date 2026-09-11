@@ -174,7 +174,12 @@ export default function QuickAddScreen() {
                   style={({ pressed }) => [
                     styles.typeBtn,
                     isSelected && {
-                      backgroundColor: isDark ? colors.secondary : colors.primary,
+                      backgroundColor:
+                        type === 'expense'
+                          ? colors.error
+                          : isDark
+                          ? colors.secondary
+                          : '#059669',
                     },
                     { transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
@@ -183,9 +188,11 @@ export default function QuickAddScreen() {
                     variant="labelMd"
                     color={
                       isSelected
-                        ? isDark
+                        ? type === 'expense'
+                          ? '#FFFFFF'
+                          : isDark
                           ? '#052E16'
-                          : colors.onPrimary
+                          : '#FFFFFF'
                         : colors.textSecondary
                     }
                     style={{ textTransform: 'capitalize', fontWeight: isSelected ? '700' : '500' }}
@@ -231,7 +238,13 @@ export default function QuickAddScreen() {
             <View style={styles.amountInputRow}>
               <ThemedText
                 variant="displayHero"
-                color={colors.textSecondary}
+                color={
+                  flowType === 'expense'
+                    ? colors.error
+                    : isDark
+                    ? colors.secondary
+                    : '#059669'
+                }
                 style={styles.currencyPrefix}
               >
                 {currencySymbol}
@@ -240,7 +253,14 @@ export default function QuickAddScreen() {
                 ref={amountInputRef}
                 style={[
                   styles.nativeAmountInput,
-                  { color: colors.text },
+                  {
+                    color:
+                      flowType === 'expense'
+                        ? colors.error
+                        : isDark
+                        ? colors.secondary
+                        : '#059669',
+                  },
                 ]}
                 placeholder="0.00"
                 placeholderTextColor={colors.textTertiary}
@@ -499,12 +519,38 @@ export default function QuickAddScreen() {
               }
               size="lg"
               variant="primary"
+              style={{
+                backgroundColor:
+                  flowType === 'expense'
+                    ? colors.error
+                    : isDark
+                    ? colors.secondary
+                    : '#059669',
+              }}
+              textStyle={{
+                color:
+                  flowType === 'expense'
+                    ? '#FFFFFF'
+                    : isDark
+                    ? '#052E16'
+                    : '#FFFFFF',
+              }}
               loading={isSaving}
               disabled={!parseFloat(rawAmount) || parseFloat(rawAmount) <= 0 || isSaving}
               onPress={handleSave}
               icon={
                 savedSuccess ? (
-                  <Feather name="check" size={20} color={colors.onPrimary} />
+                  <Feather
+                    name="check"
+                    size={20}
+                    color={
+                      flowType === 'expense'
+                        ? '#FFFFFF'
+                        : isDark
+                        ? '#052E16'
+                        : '#FFFFFF'
+                    }
+                  />
                 ) : undefined
               }
             />

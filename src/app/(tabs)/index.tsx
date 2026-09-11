@@ -225,7 +225,7 @@ export default function DashboardScreen() {
               </ThemedText>
               <View style={[styles.miniDot, { backgroundColor: colors.secondary }]} />
             </View>
-            <ThemedText variant="headlineMd" style={{ marginVertical: 4 }}>
+            <ThemedText variant="headlineMd" color={colors.secondary} style={{ marginVertical: 4 }}>
               {formatCurrency(analytics.totalIncome, currency)}
             </ThemedText>
             <View style={styles.matrixPillRow}>
@@ -244,7 +244,7 @@ export default function DashboardScreen() {
               </ThemedText>
               <View style={[styles.miniDot, { backgroundColor: colors.error }]} />
             </View>
-            <ThemedText variant="headlineMd" style={{ marginVertical: 4 }}>
+            <ThemedText variant="headlineMd" color={colors.error} style={{ marginVertical: 4 }}>
               {formatCurrency(analytics.totalExpenses, currency)}
             </ThemedText>
             <View style={styles.matrixPillRow}>
@@ -324,14 +324,16 @@ export default function DashboardScreen() {
                               backgroundColor:
                                 tx.type === 'income'
                                   ? 'rgba(16, 185, 129, 0.15)'
-                                  : colors.surfaceContainerLow,
+                                  : isDark
+                                  ? 'rgba(239, 68, 68, 0.15)'
+                                  : 'rgba(220, 38, 38, 0.1)',
                             },
                           ]}
                         >
                           <Feather
                             name={getCategoryIcon(tx.category) as any}
                             size={18}
-                            color={tx.type === 'income' ? colors.secondary : colors.text}
+                            color={tx.type === 'income' ? colors.secondary : colors.error}
                           />
                         </View>
 
@@ -363,7 +365,7 @@ export default function DashboardScreen() {
                       <View style={styles.txRight}>
                         <ThemedText
                           variant="headlineSm"
-                          color={isExpense ? colors.text : colors.secondary}
+                          color={isExpense ? colors.error : colors.secondary}
                           style={{ fontWeight: '700' }}
                         >
                           {isExpense

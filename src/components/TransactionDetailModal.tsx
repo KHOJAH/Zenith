@@ -151,7 +151,9 @@ export function TransactionDetailModal({
                 styles.iconWrap,
                 {
                   backgroundColor: isExpense
-                    ? colors.surfaceContainerLow
+                    ? isDark
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : 'rgba(220, 38, 38, 0.1)'
                     : 'rgba(16, 185, 129, 0.15)',
                 },
               ]}
@@ -159,7 +161,7 @@ export function TransactionDetailModal({
               <Feather
                 name={getCategoryIcon(transaction.category) as any}
                 size={28}
-                color={isExpense ? colors.text : colors.secondary}
+                color={isExpense ? colors.error : colors.secondary}
               />
             </View>
 
@@ -186,7 +188,7 @@ export function TransactionDetailModal({
 
             <ThemedText
               variant="displayHero"
-              color={isExpense ? colors.text : colors.secondary}
+              color={isExpense ? colors.error : colors.secondary}
               style={{ marginTop: spacing.xs }}
             >
               {isExpense ? '-' : '+'}

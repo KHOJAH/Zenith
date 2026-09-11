@@ -223,7 +223,7 @@ export function StatementExportModal({
                 <ThemedText variant="bodySm" color={colors.textSecondary}>
                   Total Expenses
                 </ThemedText>
-                <ThemedText variant="headlineSm" color={colors.text} style={{ fontWeight: '700' }}>
+                <ThemedText variant="headlineSm" color={colors.error} style={{ fontWeight: '700' }}>
                   -{formatCurrency(analytics.totalExpenses, currency)}
                 </ThemedText>
               </View>
@@ -316,7 +316,7 @@ export function StatementExportModal({
                       </View>
                       <ThemedText
                         variant="labelMd"
-                        color={isExpense ? colors.text : colors.secondary}
+                        color={isExpense ? colors.error : colors.secondary}
                         style={{ fontWeight: '700' }}
                       >
                         {isExpense ? '-' : '+'}

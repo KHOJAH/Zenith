@@ -210,7 +210,7 @@ export default function AnalyticsScreen() {
                 </View>
 
                 <View style={{ alignItems: 'flex-end' }}>
-                  <ThemedText variant="labelMd" color={colors.secondary} style={{ fontWeight: '700' }}>
+                  <ThemedText variant="labelMd" color={colors.error} style={{ fontWeight: '700' }}>
                     {formatCurrency(analytics.totalExpenses, currency)}
                   </ThemedText>
                   <ThemedText variant="bodySm" color={colors.textTertiary}>
