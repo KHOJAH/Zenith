@@ -1,9 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, CategoryItem, DateInterval } from '@/db/schema';
 import * as db from '@/db/database';
 import { calculateMonthAnalytics, MonthAnalytics } from '@/utils/velocity';
 import { getItem, setItem, getJSON, setJSON, STORAGE_KEYS } from '@/utils/storage';
 import { getSalaryCycleDates } from '@/utils/salary';
+import {
+  stepDateInterval as stepDateIntervalUtil,
+  getCurrentInterval,
+  isCurrentPeriod as isCurrentPeriodUtil,
+  canStepNext as canStepNextUtil,
+} from '@/utils/dateInterval';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -14,8 +20,14 @@ interface TransactionContextType {
   currency: string;
   isBalanceHidden: boolean;
   dateInterval: DateInterval;
+  salaryDay: number;
+  isCurrentInterval: boolean;
+  canGoNext: boolean;
   setCurrency: (c: string) => void;
   setDateInterval: (interval: DateInterval) => void;
+  setSalaryDay: (day: number) => void;
+  stepDateInterval: (direction: 'prev' | 'next') => void;
+  resetDateIntervalToCurrent: () => void;
   toggleBalanceVisibility: () => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at'>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -27,13 +39,7 @@ interface TransactionContextType {
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
 function getDefaultInterval(): DateInterval {
-  const now = new Date();
-  return {
-    id: 'current_month',
-    label: now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-    startDate: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString(),
-    endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString(),
-  };
+  return getCurrentInterval('current_month');
 }
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
@@ -43,6 +49,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [currency, setCurrencyState] = useState<string>('USD');
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
   const [dateInterval, setDateIntervalState] = useState<DateInterval>(getDefaultInterval);
+  const [salaryDay, setSalaryDayState] = useState<number>(27);
 
   // Load persisted settings on mount
   useEffect(() => {
@@ -60,16 +67,12 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         if (savedCurrency) setCurrencyState(savedCurrency);
         if (savedHidden === 'true') setIsBalanceHidden(true);
 
+        const day = parseInt(savedSalaryDay || '27', 10) || 27;
+        setSalaryDayState(day);
+
         if (savedInterval && savedInterval.id === 'salary_cycle') {
-          const day = parseInt(savedSalaryDay || '27', 10) || 27;
-          const cycle = getSalaryCycleDates(day);
-          setDateIntervalState({
-            id: 'salary_cycle',
-            label: cycle.label,
-            startDate: cycle.start.toISOString(),
-            endDate: cycle.endDate.toISOString(),
-          });
-        } else if (savedInterval && savedInterval.startDate && savedInterval.endDate) {
+          setDateIntervalState(getCurrentInterval('salary_cycle', day));
+        } else if (savedInterval) {
           setDateIntervalState(savedInterval);
         }
       } catch (err) {
@@ -92,6 +95,36 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     setDateIntervalState(interval);
     setJSON(STORAGE_KEYS.DATE_INTERVAL, interval);
   }, []);
+
+  const setSalaryDay = useCallback((day: number) => {
+    const bounded = Math.max(1, Math.min(31, Math.round(day)));
+    setSalaryDayState(bounded);
+    setItem(STORAGE_KEYS.SALARY_DAY, String(bounded));
+  }, []);
+
+  const stepDateInterval = useCallback((direction: 'prev' | 'next') => {
+    setDateIntervalState((current) => {
+      const next = stepDateIntervalUtil(current, direction, salaryDay);
+      setJSON(STORAGE_KEYS.DATE_INTERVAL, next);
+      return next;
+    });
+  }, [salaryDay]);
+
+  const resetDateIntervalToCurrent = useCallback(() => {
+    setDateIntervalState((current) => {
+      const currentPeriod = getCurrentInterval(current.id, salaryDay);
+      setJSON(STORAGE_KEYS.DATE_INTERVAL, currentPeriod);
+      return currentPeriod;
+    });
+  }, [salaryDay]);
+
+  const isCurrentInterval = useMemo(() => {
+    return isCurrentPeriodUtil(dateInterval, salaryDay);
+  }, [dateInterval, salaryDay]);
+
+  const canGoNext = useMemo(() => {
+    return canStepNextUtil(dateInterval, salaryDay);
+  }, [dateInterval, salaryDay]);
 
   const toggleBalanceVisibility = useCallback(() => {
     setIsBalanceHidden((prev) => {
@@ -197,8 +230,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         currency,
         isBalanceHidden,
         dateInterval,
+        salaryDay,
+        isCurrentInterval,
+        canGoNext,
         setCurrency,
         setDateInterval,
+        setSalaryDay,
+        stepDateInterval,
+        resetDateIntervalToCurrent,
         toggleBalanceVisibility,
         addTransaction,
         deleteTransaction,

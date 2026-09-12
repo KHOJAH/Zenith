@@ -36,7 +36,9 @@ export default function TransactionsScreen() {
     analytics,
     currency,
     dateInterval,
+    salaryDay,
     setDateInterval,
+    setSalaryDay,
     deleteTransaction,
     clearAll,
   } = useTransactions();
@@ -493,6 +495,8 @@ export default function TransactionsScreen() {
       <DateIntervalModal
         visible={intervalModalVisible}
         currentInterval={dateInterval}
+        salaryDay={salaryDay}
+        onSalaryDayChange={setSalaryDay}
         onSelectInterval={(inv) => setDateInterval(inv)}
         onClose={() => setIntervalModalVisible(false)}
       />

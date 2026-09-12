@@ -9,19 +9,22 @@ import {
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/context/ThemeContext";
-import { DateInterval } from "@/db/schema";
+import type { DateInterval } from "@/db/schema";
 import { ThemedText } from "./ThemedText";
 import { Button } from "./Button";
 import { spacing } from "@/theme/spacing";
 import { radius } from "@/theme/radius";
 import { getItem, setItem, STORAGE_KEYS } from "@/utils/storage";
 import { getSalaryCycleDates, getOrdinalSuffix } from "@/utils/salary";
+import { getCurrentInterval } from "@/utils/dateInterval";
 
 interface DateIntervalModalProps {
   visible: boolean;
   currentInterval: DateInterval;
   onSelectInterval: (interval: DateInterval) => void;
   onClose: () => void;
+  salaryDay?: number;
+  onSalaryDayChange?: (day: number) => void;
 }
 
 const MONTH_NAMES = [
@@ -36,6 +39,8 @@ export function DateIntervalModal({
   currentInterval,
   onSelectInterval,
   onClose,
+  salaryDay: propSalaryDay,
+  onSalaryDayChange,
 }: DateIntervalModalProps) {
   const { colors, isDark } = useTheme();
 
@@ -43,22 +48,34 @@ export function DateIntervalModal({
     currentInterval.id === "custom" ? "salary_cycle" : currentInterval.id
   );
 
-  const [salaryDay, setSalaryDay] = useState<number>(27);
+  const [salaryDay, setSalaryDay] = useState<number>(propSalaryDay || 27);
 
-  // Load saved salary day
+  // Sync selectedType when modal opens
   useEffect(() => {
-    getItem(STORAGE_KEYS.SALARY_DAY, "27").then((val) => {
-      const parsed = parseInt(val, 10);
-      if (parsed >= 1 && parsed <= 31) {
-        setSalaryDay(parsed);
-      }
-    });
-  }, []);
+    if (visible) {
+      setSelectedType(currentInterval.id === "custom" ? "salary_cycle" : currentInterval.id);
+    }
+  }, [visible, currentInterval.id]);
+
+  // Load saved salary day or sync from prop
+  useEffect(() => {
+    if (propSalaryDay && propSalaryDay >= 1 && propSalaryDay <= 31) {
+      setSalaryDay(propSalaryDay);
+    } else {
+      getItem(STORAGE_KEYS.SALARY_DAY, "27").then((val) => {
+        const parsed = parseInt(val, 10);
+        if (parsed >= 1 && parsed <= 31) {
+          setSalaryDay(parsed);
+        }
+      });
+    }
+  }, [propSalaryDay]);
 
   const handleDaySelect = (day: number) => {
     const bounded = Math.max(1, Math.min(31, Math.round(day)));
     setSalaryDay(bounded);
     setItem(STORAGE_KEYS.SALARY_DAY, String(bounded));
+    onSalaryDayChange?.(bounded);
     try {
       Haptics.selectionAsync();
     } catch {}
@@ -82,57 +99,51 @@ export function DateIntervalModal({
     getDates: () => { start: Date; end: Date; label: string };
   }[] => {
     const now = new Date();
+    const salaryCycle = getCurrentInterval("salary_cycle", salaryDay);
+    const calMonth = getCurrentInterval("current_month", salaryDay);
+    const last30 = getCurrentInterval("last_30_days", salaryDay);
+    const last7 = getCurrentInterval("last_7_days", salaryDay);
+
     return [
       {
         id: "salary_cycle",
         label: "Salary Cycle",
-        sublabel: `${currentSalaryCycle.label} • Cycles on the ${getOrdinalSuffix(salaryDay)}`,
+        sublabel: `${salaryCycle.label} • Cycles on the ${getOrdinalSuffix(salaryDay)}`,
         getDates: () => ({
-          start: currentSalaryCycle.start,
-          end: currentSalaryCycle.endDate,
-          label: currentSalaryCycle.label,
+          start: new Date(salaryCycle.startDate),
+          end: new Date(salaryCycle.endDate),
+          label: salaryCycle.label,
         }),
       },
       {
         id: "current_month",
         label: "Calendar Month",
         sublabel: `${MONTH_NAMES[now.getMonth()]} 1 – ${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`,
-        getDates: () => {
-          const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-          const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-          const end = new Date(now.getFullYear(), now.getMonth(), lastDay, 23, 59, 59, 999);
-          return {
-            start,
-            end,
-            label: now.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-          };
-        },
+        getDates: () => ({
+          start: new Date(calMonth.startDate),
+          end: new Date(calMonth.endDate),
+          label: calMonth.label,
+        }),
       },
       {
         id: "last_30_days",
         label: "Last 30 Days",
         sublabel: "Past 30 rolling days",
-        getDates: () => {
-          const s = new Date(now);
-          s.setDate(now.getDate() - 30);
-          s.setHours(0, 0, 0, 0);
-          const e = new Date(now);
-          e.setHours(23, 59, 59, 999);
-          return { start: s, end: e, label: "Last 30 Days" };
-        },
+        getDates: () => ({
+          start: new Date(last30.startDate),
+          end: new Date(last30.endDate),
+          label: last30.label,
+        }),
       },
       {
         id: "last_7_days",
         label: "Last 7 Days",
         sublabel: "Past week",
-        getDates: () => {
-          const s = new Date(now);
-          s.setDate(now.getDate() - 7);
-          s.setHours(0, 0, 0, 0);
-          const e = new Date(now);
-          e.setHours(23, 59, 59, 999);
-          return { start: s, end: e, label: "Last 7 Days" };
-        },
+        getDates: () => ({
+          start: new Date(last7.startDate),
+          end: new Date(last7.endDate),
+          label: last7.label,
+        }),
       },
     ];
   };
