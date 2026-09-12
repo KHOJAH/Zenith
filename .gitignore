@@ -49,6 +49,11 @@ example
 # documentation & specs
 docs/
 
+# learning guides (ignore root learn files, keep me-learn)
+learn/*
+!learn/me-learn/
+!learn/me-learn/**
+
 # built binaries
 *.apk
 *.aab
