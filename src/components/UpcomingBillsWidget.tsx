@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
 import { useTransactions } from '@/context/TransactionContext';
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, formatDateGroup } from '@/utils/formatters';
 import { convertCurrency } from '@/utils/currencies';
 import { spacing } from '@/theme/spacing';
 import { radius } from '@/theme/radius';
@@ -164,7 +164,7 @@ export function UpcomingBillsWidget() {
       </View>
 
       {/* When all bills for the cycle are paid */}
-      {allPaid ? (
+      {allPaid && (
         <Card padding="md" bordered={false} style={styles.allPaidCard}>
           <View style={styles.allPaidRow}>
             <View style={[styles.allPaidIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
@@ -180,14 +180,26 @@ export function UpcomingBillsWidget() {
             </View>
           </View>
         </Card>
-      ) : recurringStatuses.length === 0 ? (
-        <Card padding="md" bordered={false}>
-          <ThemedText variant="bodySm" color={colors.textSecondary}>
-            No recurring bills due in this interval.
-          </ThemedText>
+      )}
+
+      {recurringStatuses.length === 0 ? (
+        <Card padding="md" bordered={false} style={styles.allPaidCard}>
+          <View style={styles.allPaidRow}>
+            <View style={[styles.allPaidIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+              <Feather name="check" size={18} color={colors.secondary} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <ThemedText variant="headlineSm" color={colors.secondary} style={{ fontWeight: '700' }}>
+                All recurring bills paid for this cycle ✓
+              </ThemedText>
+              <ThemedText variant="bodySm" color={colors.textSecondary}>
+                No recurring bills due in this interval.
+              </ThemedText>
+            </View>
+          </View>
         </Card>
       ) : (
-        <Card padding="xs" bordered={false} style={styles.billsCard}>
+        <Card padding="xs" bordered={false} style={[styles.billsCard, allPaid && { marginTop: spacing.xs }]}>
           {recurringStatuses.map((item, idx) => {
             const isLast = idx === recurringStatuses.length - 1;
             const isPaid = item.status === 'PAID';
@@ -264,7 +276,9 @@ export function UpcomingBillsWidget() {
                         {/* Status badge */}
                         {isPaid ? (
                           <ThemedText variant="labelSm" color={colors.secondary} style={{ fontWeight: '600' }}>
-                            Paid ✓
+                            {item.paidTransaction?.date
+                              ? `Paid ${formatDateGroup(item.paidTransaction.date)}`
+                              : 'Paid ✓'}
                           </ThemedText>
                         ) : isOverdue ? (
                           <ThemedText variant="labelSm" color={colors.error} style={{ fontWeight: '700' }}>

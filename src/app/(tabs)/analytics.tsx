@@ -291,7 +291,7 @@ export default function AnalyticsScreen() {
                     style={[
                       styles.meterFill,
                       {
-                        width: `${recurringSummary.cycleTotalCommitted > 0 ? Math.min(100, Math.round((recurringSummary.cyclePaid / recurringSummary.cycleTotalCommitted) * 100)) : 0}%`,
+                        width: `${recurringSummary.cycleTotalCommitted > 0 ? Math.max(0, Math.min(100, Math.round((recurringSummary.cyclePaid / recurringSummary.cycleTotalCommitted) * 100))) : 0}%`,
                         backgroundColor: colors.secondary,
                       },
                     ]}

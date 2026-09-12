@@ -12,6 +12,7 @@ import {
 } from '@/utils/dateInterval';
 import {
   calculateRecurringSummaries,
+  getBillDueDateInInterval,
   type RecurringBillStatus,
   type RecurringCommitmentsSummary,
 } from '@/utils/recurring';
@@ -43,7 +44,7 @@ interface TransactionContextType {
   addRecurringBill: (bill: Omit<RecurringBill, 'id' | 'created_at'>) => Promise<RecurringBill>;
   updateRecurringBill: (bill: RecurringBill) => Promise<void>;
   deleteRecurringBill: (id: string) => Promise<void>;
-  logRecurringBillPayment: (bill: RecurringBill) => Promise<Transaction>;
+  logRecurringBillPayment: (bill: RecurringBill, targetDate?: string | Date) => Promise<Transaction>;
   clearAll: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -213,11 +214,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       ...tx,
       currency: tx.currency || currency,
     });
+    const updated = [created, ...transactions];
+    await setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, updated);
     await refresh();
     return created;
   };
 
   const deleteTransaction = async (id: string) => {
+    const updated = transactions.filter((t) => t.id !== id);
+    await setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, updated);
     await db.deleteTransaction(id);
     await refresh();
   };
@@ -238,28 +243,50 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       ...bill,
       currency: bill.currency || currency,
     });
+    const updated = [...recurringBills, created];
+    await setJSON(STORAGE_KEYS.RECURRING_BILLS_BACKUP, updated);
     await refresh();
     return created;
   };
 
   const updateRecurringBill = async (bill: RecurringBill) => {
+    const updated = recurringBills.map((b) => (b.id === bill.id ? bill : b));
+    await setJSON(STORAGE_KEYS.RECURRING_BILLS_BACKUP, updated);
     await db.updateRecurringBill(bill);
     await refresh();
   };
 
   const deleteRecurringBill = async (id: string) => {
+    const updated = recurringBills.filter((b) => b.id !== id);
+    await setJSON(STORAGE_KEYS.RECURRING_BILLS_BACKUP, updated);
     await db.deleteRecurringBill(id);
     await refresh();
   };
 
-  const logRecurringBillPayment = async (bill: RecurringBill) => {
+  const logRecurringBillPayment = async (bill: RecurringBill, targetDate?: string | Date) => {
+    let txDate: string;
+    if (targetDate) {
+      txDate = typeof targetDate === 'string' ? targetDate : targetDate.toISOString();
+    } else {
+      const now = new Date();
+      const start = new Date(dateInterval.startDate).getTime();
+      const end = new Date(dateInterval.endDate).getTime();
+      const nowTime = now.getTime();
+      if (nowTime >= start && nowTime <= end) {
+        txDate = now.toISOString();
+      } else {
+        const dueDate = getBillDueDateInInterval(bill, dateInterval.startDate, dateInterval.endDate);
+        txDate = (dueDate || new Date(dateInterval.startDate)).toISOString();
+      }
+    }
+
     const created = await addTransaction({
       amount: bill.amount,
       category: bill.category,
       type: 'expense',
       merchant: bill.name,
       note: `Recurring • ${bill.name}`,
-      date: new Date().toISOString(),
+      date: txDate,
       payment_method: bill.payment_method || 'Card',
       currency: bill.currency || currency,
     });

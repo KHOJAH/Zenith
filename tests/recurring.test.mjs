@@ -395,6 +395,115 @@ describe('Recurring Bills Business Logic Suite', () => {
       assert.equal(summary.cyclePaid, 0);
       assert.equal(summary.cycleRemaining, 0);
     });
+
+    test('Substring collision protection: "Recurring • Google One" does NOT mark "Google" as paid', () => {
+      const billGoogle = { ...sampleMonthlyBill1, id: 'b_google', name: 'Google', due_day: 15 };
+      const billGoogleOne = { ...sampleMonthlyBill1, id: 'b_google_one', name: 'Google One', due_day: 15 };
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const txGoogleOne = {
+        id: 'tx_google_one',
+        amount: 50,
+        type: 'expense',
+        category: 'Shopping & Tech',
+        merchant: 'Google One',
+        note: 'Recurring • Google One',
+        date: '2026-09-10T12:00:00.000Z',
+        currency: 'USD',
+        created_at: '2026-09-10T12:00:00.000Z',
+      };
+
+      const resGoogle = evaluateBillStatus(billGoogle, [txGoogleOne], start, end, new Date(2026, 8, 12));
+      assert.ok(resGoogle);
+      assert.equal(resGoogle.status, 'UPCOMING', 'Google should not be marked as PAID when only Google One was paid');
+
+      const resGoogleOne = evaluateBillStatus(billGoogleOne, [txGoogleOne], start, end, new Date(2026, 8, 12));
+      assert.ok(resGoogleOne);
+      assert.equal(resGoogleOne.status, 'PAID');
+    });
+
+    test('Parenthetical note descriptions: "Recurring • Spotify (Family Plan)" matches "Spotify"', () => {
+      const billSpotify = { ...sampleMonthlyBill1, id: 'b_spotify', name: 'Spotify', due_day: 15 };
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const txSpotify = {
+        id: 'tx_spotify_family',
+        amount: 50,
+        type: 'expense',
+        category: 'Entertainment',
+        merchant: 'Spotify',
+        note: 'Recurring • Spotify (Family Plan)',
+        date: '2026-09-10T12:00:00.000Z',
+        currency: 'USD',
+        created_at: '2026-09-10T12:00:00.000Z',
+      };
+
+      const res = evaluateBillStatus(billSpotify, [txSpotify], start, end, new Date(2026, 8, 12));
+      assert.ok(res);
+      assert.equal(res.status, 'PAID');
+    });
+
+    test('Duplicate bill names do not double-count a single transaction in cycle summaries', () => {
+      const bill1 = { ...sampleMonthlyBill1, id: 'b_elec_1', name: 'Electricity', amount: 60, due_day: 5 };
+      const bill2 = { ...sampleMonthlyBill1, id: 'b_elec_2', name: 'Electricity', amount: 60, due_day: 15 };
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const txSingle = {
+        id: 'tx_elec_single',
+        amount: 60,
+        type: 'expense',
+        category: 'Housing & Utilities',
+        merchant: 'Electricity',
+        note: 'Recurring • Electricity',
+        date: '2026-09-04T12:00:00.000Z',
+        currency: 'USD',
+        created_at: '2026-09-04T12:00:00.000Z',
+      };
+
+      const { statuses, summary } = calculateRecurringSummaries(
+        [bill1, bill2],
+        [txSingle],
+        start,
+        end,
+        'USD',
+        new Date(2026, 8, 10)
+      );
+
+      assert.equal(statuses.length, 2);
+      const paidBills = statuses.filter((s) => s.status === 'PAID');
+      const unpaidBills = statuses.filter((s) => s.status !== 'PAID');
+
+      assert.equal(paidBills.length, 1, 'Only 1 bill should be marked PAID with 1 transaction');
+      assert.equal(unpaidBills.length, 1, 'The 2nd bill must remain unpaid');
+      assert.equal(summary.cyclePaid, 60);
+      assert.equal(summary.cycleRemaining, 60);
+      assert.equal(summary.cycleTotalCommitted, 120);
+    });
+
+    test('Bill names with regex special characters match safely without errors', () => {
+      const billSpecial = { ...sampleMonthlyBill1, id: 'b_special', name: 'C++ Course (Pro+)', due_day: 15 };
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const txSpecial = {
+        id: 'tx_special',
+        amount: 50,
+        type: 'expense',
+        category: 'Shopping & Tech',
+        merchant: 'Online Academy',
+        note: 'Recurring • C++ Course (Pro+)',
+        date: '2026-09-10T12:00:00.000Z',
+        currency: 'USD',
+        created_at: '2026-09-10T12:00:00.000Z',
+      };
+
+      const res = evaluateBillStatus(billSpecial, [txSpecial], start, end, new Date(2026, 8, 12));
+      assert.ok(res);
+      assert.equal(res.status, 'PAID');
+    });
   });
 });
 

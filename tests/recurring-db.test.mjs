@@ -49,4 +49,47 @@ describe('Recurring Bills DB & Schema Suite', () => {
     assert.equal(yearlyBill.frequency, 'yearly');
     assert.equal(yearlyBill.due_month, 6);
   });
+
+  test('insertRecurringBill inserts and returns complete bill with defaults', async () => {
+    const inserted = await db.insertRecurringBill({
+      name: 'Gym',
+      amount: 45,
+      category: 'Health & Wellness',
+      frequency: 'monthly',
+      due_day: 10,
+    });
+
+    assert.ok(inserted.id);
+    assert.equal(inserted.name, 'Gym');
+    assert.equal(inserted.amount, 45);
+    assert.equal(inserted.currency, 'USD');
+    assert.equal(inserted.payment_method, 'Card');
+    assert.equal(inserted.frequency, 'monthly');
+    assert.equal(inserted.is_active, true);
+    assert.ok(inserted.created_at);
+  });
+
+  test('updateRecurringBill and deleteRecurringBill execute without error', async () => {
+    const bill = {
+      id: 'bill_test_update',
+      name: 'Gym Updated',
+      amount: 55,
+      category: 'Health & Wellness',
+      currency: 'USD',
+      payment_method: 'Card',
+      frequency: 'monthly',
+      due_day: 12,
+      icon: 'activity',
+      is_active: false,
+      created_at: '2026-09-12T12:00:00.000Z',
+    };
+
+    await assert.doesNotReject(async () => {
+      await db.updateRecurringBill(bill);
+    });
+
+    await assert.doesNotReject(async () => {
+      await db.deleteRecurringBill(bill.id);
+    });
+  });
 });

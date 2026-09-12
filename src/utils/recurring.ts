@@ -18,6 +18,10 @@ export interface RecurringCommitmentsSummary {
   cycleRemaining: number;
 }
 
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * Calculates the date a bill is due within a given date interval.
  * Returns null if the bill does not fall due within this interval.
@@ -55,7 +59,7 @@ export function getBillDueDateInInterval(
 
   for (const { year, month } of monthsToCheck) {
     if (bill.frequency === 'yearly') {
-      const targetMonth = (bill.due_month ? bill.due_month : 1) - 1;
+      const targetMonth = (bill.due_month && bill.due_month >= 1 && bill.due_month <= 12 ? bill.due_month : 1) - 1;
       if (month !== targetMonth) continue;
     }
 
@@ -98,7 +102,11 @@ export function evaluateBillStatus(
   const endMs = end.getTime();
 
   const billNameLower = bill.name.trim().toLowerCase();
-  const recurringPrefix = `recurring • ${billNameLower}`;
+  const escaped = escapeRegExp(billNameLower);
+  // Structured recurring pattern matching: "Recurring • [name]" or "Recurring - [name]" or "Recurring: [name]"
+  // Requires word-safe ending (end of string or open parenthesis for optional plan descriptions),
+  // preventing false-positive substring collisions (e.g. "Google One" matching "Google").
+  const recurringPattern = new RegExp(`(?:^|\\s)recurring\\s*[•\\-:]\\s*${escaped}(?:$|\\s*\\()`, 'i');
 
   // Find matching expense transaction within this interval
   const matchingTx = transactions.find((tx) => {
@@ -110,9 +118,9 @@ export function evaluateBillStatus(
     const merchantLower = (tx.merchant || '').trim().toLowerCase();
 
     return (
-      noteLower.includes(recurringPrefix) ||
+      merchantLower === billNameLower ||
       noteLower === billNameLower ||
-      merchantLower === billNameLower
+      recurringPattern.test(noteLower)
     );
   });
 
@@ -164,9 +172,16 @@ export function calculateRecurringSummaries(
   }
 
   const statuses: RecurringBillStatus[] = [];
+  const usedTxIds = new Set<string>();
+
   for (const bill of activeBills) {
-    const s = evaluateBillStatus(bill, transactions, startDate, endDate, referenceDate);
+    // Only pass transactions that haven't already been consumed by another bill in this cycle
+    const availableTxs = transactions.filter((tx) => !usedTxIds.has(tx.id));
+    const s = evaluateBillStatus(bill, availableTxs, startDate, endDate, referenceDate);
     if (s) {
+      if (s.paidTransaction) {
+        usedTxIds.add(s.paidTransaction.id);
+      }
       statuses.push(s);
     }
   }

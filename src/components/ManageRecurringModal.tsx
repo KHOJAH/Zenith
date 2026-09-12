@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Modal,
   View,
@@ -47,8 +47,11 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
     deleteRecurringBill,
   } = useTransactions();
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   // Form state
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingBill, setEditingBill] = useState<RecurringBill | null>(null);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(categories[0]?.category || 'Housing & Utilities');
@@ -59,6 +62,7 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
+    setEditingBill(null);
     setName('');
     setAmount('');
     setCategory(categories[0]?.category || 'Housing & Utilities');
@@ -69,7 +73,21 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
     setShowAddForm(false);
   };
 
-  const handleCreateBill = async () => {
+  const handleStartEdit = (bill: RecurringBill) => {
+    try { Haptics.selectionAsync(); } catch {}
+    setEditingBill(bill);
+    setName(bill.name);
+    setAmount(String(bill.amount));
+    setCategory(bill.category);
+    setFrequency(bill.frequency);
+    setPaymentMethod(bill.payment_method);
+    setDueDay(bill.due_day);
+    setDueMonth(bill.due_month || 1);
+    setShowAddForm(true);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const handleSaveBill = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
       Alert.alert('Missing Name', 'Please enter a bill name (e.g. Netflix, Rent).');
@@ -85,21 +103,35 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
     setIsSubmitting(true);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await addRecurringBill({
-        name: trimmedName,
-        amount: parsedAmount,
-        category,
-        currency,
-        payment_method: paymentMethod,
-        frequency,
-        due_day: dueDay,
-        due_month: frequency === 'yearly' ? dueMonth : undefined,
-        icon: getCategoryIcon(category),
-        is_active: true,
-      });
+      if (editingBill) {
+        await updateRecurringBill({
+          ...editingBill,
+          name: trimmedName,
+          amount: parsedAmount,
+          category,
+          frequency,
+          payment_method: paymentMethod,
+          due_day: dueDay,
+          due_month: frequency === 'yearly' ? dueMonth : undefined,
+          icon: getCategoryIcon(category),
+        });
+      } else {
+        await addRecurringBill({
+          name: trimmedName,
+          amount: parsedAmount,
+          category,
+          currency,
+          payment_method: paymentMethod,
+          frequency,
+          due_day: dueDay,
+          due_month: frequency === 'yearly' ? dueMonth : undefined,
+          icon: getCategoryIcon(category),
+          is_active: true,
+        });
+      }
       resetForm();
     } catch (err) {
-      console.error('Failed to create recurring bill:', err);
+      console.error('Failed to save recurring bill:', err);
       Alert.alert('Error', 'Failed to save recurring bill.');
     } finally {
       setIsSubmitting(false);
@@ -130,6 +162,9 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
           onPress: async () => {
             try {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              if (editingBill?.id === bill.id) {
+                resetForm();
+              }
               await deleteRecurringBill(bill.id);
             } catch (err) {
               console.error('Failed to delete recurring bill:', err);
@@ -206,6 +241,7 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
             </View>
 
             <ScrollView
+              ref={scrollViewRef}
               style={styles.scrollArea}
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -213,13 +249,18 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
               {/* Add New Bill Action Header */}
               <View style={styles.sectionHeader}>
                 <ThemedText variant="labelMd" color={colors.textSecondary} style={{ fontWeight: '700' }}>
-                  {showAddForm ? 'NEW BILL DETAILS' : 'COMMITTED BILLS'}
+                  {editingBill ? 'EDIT BILL DETAILS' : showAddForm ? 'NEW BILL DETAILS' : 'COMMITTED BILLS'}
                 </ThemedText>
 
                 <Pressable
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setShowAddForm(!showAddForm);
+                    if (showAddForm) {
+                      resetForm();
+                    } else {
+                      setShowAddForm(true);
+                      setEditingBill(null);
+                    }
                   }}
                   style={({ pressed }) => [
                     styles.toggleAddBtn,
@@ -234,7 +275,7 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
                   ]}
                 >
                   <Feather
-                    name={showAddForm ? 'minus' : 'plus'}
+                    name={showAddForm ? 'x' : 'plus'}
                     size={14}
                     color={showAddForm ? colors.text : isDark ? colors.secondaryMint : colors.text}
                   />
@@ -546,11 +587,11 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
                   {/* Submit Button */}
                   <View style={{ marginTop: spacing.xs }}>
                     <Button
-                      title="Save Recurring Bill"
+                      title={editingBill ? 'Save Changes' : 'Save Recurring Bill'}
                       variant="primary"
                       size="md"
                       loading={isSubmitting}
-                      onPress={handleCreateBill}
+                      onPress={handleSaveBill}
                     />
                   </View>
                 </Card>
@@ -577,6 +618,7 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
                 <View style={styles.billsList}>
                   {recurringBills.map((bill) => {
                     const isYearly = bill.frequency === 'yearly';
+                    const isEditingThisBill = editingBill?.id === bill.id;
                     return (
                       <Card
                         key={bill.id}
@@ -586,7 +628,8 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
                           styles.billCard,
                           {
                             opacity: bill.is_active ? 1 : 0.6,
-                            borderColor: colors.border,
+                            borderColor: isEditingThisBill ? colors.secondary : colors.border,
+                            borderWidth: isEditingThisBill ? 1.5 : 1,
                           },
                         ]}
                       >
@@ -612,6 +655,18 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
                                 <ThemedText variant="headlineSm" numberOfLines={1}>
                                   {bill.name}
                                 </ThemedText>
+                                {isEditingThisBill && (
+                                  <View
+                                    style={[
+                                      styles.pausedBadge,
+                                      { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(5, 150, 105, 0.15)' },
+                                    ]}
+                                  >
+                                    <ThemedText variant="labelSm" color={colors.secondary} style={{ fontSize: 10, fontWeight: '700' }}>
+                                      EDITING
+                                    </ThemedText>
+                                  </View>
+                                )}
                                 {!bill.is_active && (
                                   <View
                                     style={[
@@ -659,18 +714,50 @@ export function ManageRecurringModal({ visible, onClose }: ManageRecurringModalP
                             </ThemedText>
                           </View>
 
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Delete ${bill.name}`}
-                            onPress={() => handleDeleteBill(bill)}
-                            hitSlop={8}
-                            style={({ pressed }) => [
-                              styles.deleteBtn,
-                              { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                            ]}
-                          >
-                            <Feather name="trash-2" size={16} color={colors.error} />
-                          </Pressable>
+                          <View style={styles.cardActionsRight}>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Edit ${bill.name}`}
+                              onPress={() => handleStartEdit(bill)}
+                              hitSlop={8}
+                              style={({ pressed }) => [
+                                styles.actionBtn,
+                                {
+                                  backgroundColor: isEditingThisBill
+                                    ? (isDark ? colors.secondary : colors.primary)
+                                    : colors.surfaceContainerLow,
+                                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                                },
+                              ]}
+                            >
+                              <Feather
+                                name="edit-2"
+                                size={14}
+                                color={
+                                  isEditingThisBill
+                                    ? (isDark ? '#052E16' : colors.onPrimary)
+                                    : colors.text
+                                }
+                              />
+                            </Pressable>
+
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Delete ${bill.name}`}
+                              onPress={() => handleDeleteBill(bill)}
+                              hitSlop={8}
+                              style={({ pressed }) => [
+                                styles.actionBtn,
+                                styles.deleteBtn,
+                                {
+                                  backgroundColor: colors.surfaceContainerLow,
+                                  transform: [{ scale: pressed ? 0.92 : 1 }],
+                                },
+                              ]}
+                            >
+                              <Feather name="trash-2" size={14} color={colors.error} />
+                            </Pressable>
+                          </View>
                         </View>
                       </Card>
                     );
@@ -867,7 +954,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  cardActionsRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  actionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   deleteBtn: {
-    padding: 6,
+    padding: 0,
   },
 });
