@@ -4,7 +4,9 @@ import path from 'node:path';
 
 export async function resolve(specifier, context, nextResolve) {
   let target = specifier;
-  if (specifier.startsWith('@/')) {
+  if (specifier === 'expo-sqlite') {
+    target = pathToFileURL(path.resolve(process.cwd(), 'scripts', 'mocks', 'expo-sqlite.mjs')).href;
+  } else if (specifier.startsWith('@/')) {
     target = pathToFileURL(path.resolve(process.cwd(), 'src', specifier.slice(2))).href;
   }
 

@@ -36,3 +36,19 @@ export interface CategorySummary {
   icon: string;
   color: string;
 }
+
+export interface RecurringBill {
+  id: string;
+  name: string;
+  amount: number;
+  category: string;
+  currency: string;
+  payment_method: 'Card' | 'Cash';
+  frequency: 'monthly' | 'yearly';
+  due_day: number; // 1-31
+  due_month?: number; // 1-12 (yearly only)
+  icon: string;
+  is_active: boolean;
+  created_at: string;
+}
+
