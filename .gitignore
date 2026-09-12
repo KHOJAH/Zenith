@@ -44,3 +44,7 @@ example
 
 # documentation & specs
 docs/
+
+# built binaries
+*.apk
+*.aab
