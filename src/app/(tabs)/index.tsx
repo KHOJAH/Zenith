@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { DateIntervalModal } from '@/components/DateIntervalModal';
 import { DateIntervalNav } from '@/components/DateIntervalNav';
 import { TransactionDetailModal } from '@/components/TransactionDetailModal';
+import { UpcomingBillsWidget } from '@/components/UpcomingBillsWidget';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -207,6 +208,9 @@ export default function DashboardScreen() {
             </View>
           </Card>
         </View>
+
+        {/* Recurring Commitments Widget */}
+        <UpcomingBillsWidget />
 
         {/* Recent Transactions Section */}
         <View style={styles.activitySection}>
