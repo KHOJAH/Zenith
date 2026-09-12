@@ -6,7 +6,7 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import Feather from '@expo/vector-icons/Feather';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/context/ThemeContext";

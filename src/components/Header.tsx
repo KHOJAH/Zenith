@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet, Image } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
@@ -133,9 +133,9 @@ export function Header({
               ]}
             >
               {isDark ? (
-                <Ionicons name="sunny-outline" size={18} color="#F59E0B" />
+                <Feather name="sun" size={18} color="#F59E0B" />
               ) : (
-                <Ionicons name="moon-outline" size={18} color={colors.text} />
+                <Feather name="moon" size={18} color={colors.text} />
               )}
             </Pressable>
           </View>

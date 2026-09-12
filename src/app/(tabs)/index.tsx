@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/Feather';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOut, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '@/context/ThemeContext';
