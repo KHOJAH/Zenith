@@ -284,5 +284,117 @@ describe('Recurring Bills Business Logic Suite', () => {
       const lastStatus = statuses[statuses.length - 1];
       assert.equal(lastStatus.status, 'PAID');
     });
+
+    test('Currency conversion in summaries: converts JOD/EUR to target USD', () => {
+      const bills = [
+        {
+          id: 'b_jod',
+          name: 'Gym',
+          amount: 70.9, // 70.9 JOD = ~100 USD (at rate 0.709)
+          category: 'Health & Wellness',
+          currency: 'JOD',
+          payment_method: 'Card',
+          frequency: 'monthly',
+          due_day: 10,
+          icon: 'activity',
+          is_active: true,
+          created_at: '2026-01-01T00:00:00.000Z',
+        },
+      ];
+
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const { summary } = calculateRecurringSummaries(bills, [], start, end, 'USD');
+      // 70.9 / 0.709 = 100 USD
+      assert.equal(summary.totalMonthlyCommitment, 100);
+      assert.equal(summary.cycleRemaining, 100);
+      assert.equal(summary.cyclePaid, 0);
+    });
+  });
+
+  describe('Edge Cases & Boundary Robustness', () => {
+    test('Leap year: Feb 2024 clamps day 31 to 29', () => {
+      const bill = { ...sampleMonthlyBill1, due_day: 31 };
+      const start = '2024-02-01T00:00:00.000Z';
+      const end = '2024-02-29T23:59:59.999Z';
+
+      const due = getBillDueDateInInterval(bill, start, end);
+      assert.ok(due);
+      assert.equal(due.getMonth(), 1);
+      assert.equal(due.getDate(), 29, '2024 was leap year, day 31 clamps to 29');
+    });
+
+    test('Out of bound due_day (e.g. 0 or 40) is safely clamped', () => {
+      const billZero = { ...sampleMonthlyBill1, due_day: 0 };
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const dueZero = getBillDueDateInInterval(billZero, start, end);
+      assert.ok(dueZero);
+      assert.equal(dueZero.getDate(), 1, '0 clamps to 1');
+
+      const bill40 = { ...sampleMonthlyBill1, due_day: 40 };
+      const due40 = getBillDueDateInInterval(bill40, start, end);
+      assert.ok(due40);
+      assert.equal(due40.getDate(), 30, '40 clamps to days in month (30)');
+    });
+
+    test('Case-insensitivity and whitespace trim in note/merchant matching', () => {
+      const bill = { ...sampleMonthlyBill1, name: 'Netflix', due_day: 15 };
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const txMixed = {
+        id: 'tx_mixed',
+        amount: 50,
+        type: 'expense',
+        category: 'Entertainment',
+        merchant: '  NETFLIX  ',
+        note: 'Recurring • NETFLIX',
+        date: '2026-09-12T12:00:00.000Z',
+        currency: 'USD',
+        created_at: '2026-09-12T12:00:00.000Z',
+      };
+
+      const res = evaluateBillStatus(bill, [txMixed], start, end, new Date(2026, 8, 14));
+      assert.ok(res);
+      assert.equal(res.status, 'PAID');
+    });
+
+    test('Note matches bill name directly without "Recurring •" prefix', () => {
+      const bill = { ...sampleMonthlyBill1, name: 'Gym Membership', due_day: 15 };
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const txDirect = {
+        id: 'tx_direct',
+        amount: 50,
+        type: 'expense',
+        category: 'Health & Wellness',
+        merchant: 'Local Fitness',
+        note: 'Gym Membership',
+        date: '2026-09-10T12:00:00.000Z',
+        currency: 'USD',
+        created_at: '2026-09-10T12:00:00.000Z',
+      };
+
+      const res = evaluateBillStatus(bill, [txDirect], start, end, new Date(2026, 8, 14));
+      assert.ok(res);
+      assert.equal(res.status, 'PAID');
+    });
+
+    test('Empty recurring bills returns zero summaries cleanly', () => {
+      const start = '2026-09-01T00:00:00.000Z';
+      const end = '2026-09-30T23:59:59.999Z';
+
+      const { statuses, summary } = calculateRecurringSummaries([], [], start, end, 'USD');
+      assert.equal(statuses.length, 0);
+      assert.equal(summary.totalMonthlyCommitment, 0);
+      assert.equal(summary.cycleTotalCommitted, 0);
+      assert.equal(summary.cyclePaid, 0);
+      assert.equal(summary.cycleRemaining, 0);
+    });
   });
 });
+
