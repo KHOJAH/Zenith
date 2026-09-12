@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   TRANSACTIONS_BACKUP: 'zenith_transactions_backup',
   CATEGORIES_BACKUP: 'zenith_categories_backup',
   SALARY_DAY: 'zenith_salary_day',
+  RECURRING_BILLS_BACKUP: 'zenith_recurring_bills_backup',
 };
 
 // In-memory fallback cache

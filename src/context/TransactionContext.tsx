@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { Transaction, CategoryItem, DateInterval } from '@/db/schema';
+import type { Transaction, CategoryItem, DateInterval, RecurringBill } from '@/db/schema';
 import * as db from '@/db/database';
 import { calculateMonthAnalytics, MonthAnalytics } from '@/utils/velocity';
 import { getItem, setItem, getJSON, setJSON, STORAGE_KEYS } from '@/utils/storage';
@@ -10,12 +10,20 @@ import {
   isCurrentPeriod as isCurrentPeriodUtil,
   canStepNext as canStepNextUtil,
 } from '@/utils/dateInterval';
+import {
+  calculateRecurringSummaries,
+  type RecurringBillStatus,
+  type RecurringCommitmentsSummary,
+} from '@/utils/recurring';
 
 interface TransactionContextType {
   transactions: Transaction[];
   categories: CategoryItem[];
   budgets: CategoryItem[]; // Kept for backwards compatibility
   analytics: MonthAnalytics;
+  recurringBills: RecurringBill[];
+  recurringStatuses: RecurringBillStatus[];
+  recurringSummary: RecurringCommitmentsSummary;
   isLoading: boolean;
   currency: string;
   isBalanceHidden: boolean;
@@ -32,9 +40,14 @@ interface TransactionContextType {
   addTransaction: (tx: Omit<Transaction, 'id' | 'created_at'>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
   addCustomCategory: (categoryName: string, icon?: string) => Promise<void>;
+  addRecurringBill: (bill: Omit<RecurringBill, 'id' | 'created_at'>) => Promise<RecurringBill>;
+  updateRecurringBill: (bill: RecurringBill) => Promise<void>;
+  deleteRecurringBill: (id: string) => Promise<void>;
+  logRecurringBillPayment: (bill: RecurringBill) => Promise<Transaction>;
   clearAll: () => Promise<void>;
   refresh: () => Promise<void>;
 }
+
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
@@ -45,6 +58,7 @@ function getDefaultInterval(): DateInterval {
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currency, setCurrencyState] = useState<string>('USD');
   const [isBalanceHidden, setIsBalanceHidden] = useState<boolean>(false);
@@ -136,9 +150,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   const refresh = useCallback(async () => {
     try {
-      let [txList, catList] = await Promise.all([
+      let [txList, catList, billsList] = await Promise.all([
         db.getTransactions(),
         db.getCategories(),
+        db.getRecurringBills(),
       ]);
 
       // If database returned empty on Web, check for storage backup to recover data
@@ -166,8 +181,21 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         setJSON(STORAGE_KEYS.CATEGORIES_BACKUP, catList);
       }
 
+      if (billsList.length === 0) {
+        const backupBills = await getJSON<RecurringBill[]>(STORAGE_KEYS.RECURRING_BILLS_BACKUP, []);
+        if (backupBills.length > 0) {
+          for (const b of backupBills) {
+            await db.insertRecurringBill(b);
+          }
+          billsList = backupBills;
+        }
+      } else {
+        setJSON(STORAGE_KEYS.RECURRING_BILLS_BACKUP, billsList);
+      }
+
       setTransactions(txList);
       setCategories(catList);
+      setRecurringBills(billsList);
     } catch (error) {
       console.error('Failed to load transaction data:', error);
     } finally {
@@ -205,6 +233,39 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     await refresh();
   };
 
+  const addRecurringBill = async (bill: Omit<RecurringBill, 'id' | 'created_at'>) => {
+    const created = await db.insertRecurringBill({
+      ...bill,
+      currency: bill.currency || currency,
+    });
+    await refresh();
+    return created;
+  };
+
+  const updateRecurringBill = async (bill: RecurringBill) => {
+    await db.updateRecurringBill(bill);
+    await refresh();
+  };
+
+  const deleteRecurringBill = async (id: string) => {
+    await db.deleteRecurringBill(id);
+    await refresh();
+  };
+
+  const logRecurringBillPayment = async (bill: RecurringBill) => {
+    const created = await addTransaction({
+      amount: bill.amount,
+      category: bill.category,
+      type: 'expense',
+      merchant: bill.name,
+      note: `Recurring • ${bill.name}`,
+      date: new Date().toISOString(),
+      payment_method: bill.payment_method || 'Card',
+      currency: bill.currency || currency,
+    });
+    return created;
+  };
+
   const clearAll = async () => {
     await db.clearAllTransactions();
     await setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, []);
@@ -219,6 +280,16 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     dateInterval.endDate
   );
 
+  const { statuses: recurringStatuses, summary: recurringSummary } = useMemo(() => {
+    return calculateRecurringSummaries(
+      recurringBills,
+      transactions,
+      dateInterval.startDate,
+      dateInterval.endDate,
+      currency
+    );
+  }, [recurringBills, transactions, dateInterval.startDate, dateInterval.endDate, currency]);
+
   return (
     <TransactionContext.Provider
       value={{
@@ -226,6 +297,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         categories,
         budgets: categories, // Alias
         analytics,
+        recurringBills,
+        recurringStatuses,
+        recurringSummary,
         isLoading,
         currency,
         isBalanceHidden,
@@ -242,6 +316,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         addTransaction,
         deleteTransaction,
         addCustomCategory,
+        addRecurringBill,
+        updateRecurringBill,
+        deleteRecurringBill,
+        logRecurringBillPayment,
         clearAll,
         refresh,
       }}
