@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { Transaction, CategoryItem, DateInterval, RecurringBill } from '@/db/schema';
 import * as db from '@/db/database';
+import { ZenithBackupPayload, createBackupPayload } from '@/utils/backup';
 import { calculateMonthAnalytics, MonthAnalytics } from '@/utils/velocity';
 import { getItem, setItem, getJSON, setJSON, STORAGE_KEYS } from '@/utils/storage';
-import { getSalaryCycleDates } from '@/utils/salary';
 import {
   stepDateInterval as stepDateIntervalUtil,
   getCurrentInterval,
@@ -45,6 +45,8 @@ interface TransactionContextType {
   updateRecurringBill: (bill: RecurringBill) => Promise<void>;
   deleteRecurringBill: (id: string) => Promise<void>;
   logRecurringBillPayment: (bill: RecurringBill, targetDate?: string | Date) => Promise<Transaction>;
+  exportBackup: () => ZenithBackupPayload;
+  importBackup: (payload: ZenithBackupPayload, mode: 'merge' | 'overwrite') => Promise<void>;
   clearAll: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -293,6 +295,79 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     return created;
   };
 
+  const exportBackup = useCallback((): ZenithBackupPayload => {
+    return createBackupPayload({
+      transactions,
+      categories,
+      recurring_bills: recurringBills,
+      settings: {
+        currency,
+        salary_day: salaryDay,
+        is_balance_hidden: isBalanceHidden,
+      },
+    });
+  }, [transactions, categories, recurringBills, currency, salaryDay, isBalanceHidden]);
+
+  const importBackup = useCallback(
+    async (payload: ZenithBackupPayload, mode: 'merge' | 'overwrite') => {
+      await db.restoreDatabaseFromBackup(payload, mode);
+
+      if (mode === 'overwrite') {
+        // Synchronize persistent backup cache BEFORE refresh() to prevent
+        // refresh() from resurrecting old wiped transactions, categories, or bills
+        await Promise.all([
+          setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, payload.data.transactions || []),
+          setJSON(
+            STORAGE_KEYS.CATEGORIES_BACKUP,
+            payload.data.categories && payload.data.categories.length > 0
+              ? payload.data.categories
+              : db.DEFAULT_CATEGORIES
+          ),
+          setJSON(STORAGE_KEYS.RECURRING_BILLS_BACKUP, payload.data.recurring_bills || []),
+        ]);
+
+        if (payload.data.settings) {
+          const newCurrency = payload.data.settings.currency || 'USD';
+          const newSalaryDay = payload.data.settings.salary_day ?? 27;
+          const newHidden = Boolean(payload.data.settings.is_balance_hidden);
+
+          setCurrencyState(newCurrency);
+          await setItem(STORAGE_KEYS.CURRENCY, newCurrency);
+
+          setSalaryDayState(newSalaryDay);
+          await setItem(STORAGE_KEYS.SALARY_DAY, String(newSalaryDay));
+
+          setIsBalanceHidden(newHidden);
+          await setItem(STORAGE_KEYS.BALANCE_HIDDEN, String(newHidden));
+
+          setDateIntervalState((curr) => {
+            if (curr.id === 'salary_cycle') {
+              const updated = getCurrentInterval('salary_cycle', newSalaryDay);
+              setJSON(STORAGE_KEYS.DATE_INTERVAL, updated);
+              return updated;
+            }
+            return curr;
+          });
+        }
+      }
+
+      await refresh();
+
+      const [latestTx, latestCats, latestBills] = await Promise.all([
+        db.getTransactions(),
+        db.getCategories(),
+        db.getRecurringBills(),
+      ]);
+      await Promise.all([
+        setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, latestTx),
+        setJSON(STORAGE_KEYS.CATEGORIES_BACKUP, latestCats),
+        setJSON(STORAGE_KEYS.RECURRING_BILLS_BACKUP, latestBills),
+      ]);
+    },
+    [refresh]
+  );
+
+
   const clearAll = async () => {
     await db.clearAllTransactions();
     await setJSON(STORAGE_KEYS.TRANSACTIONS_BACKUP, []);
@@ -347,6 +422,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         updateRecurringBill,
         deleteRecurringBill,
         logRecurringBillPayment,
+        exportBackup,
+        importBackup,
         clearAll,
         refresh,
       }}

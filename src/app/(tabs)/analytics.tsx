@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   ScrollView,
-  Pressable,
   StyleSheet,
 } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
@@ -23,6 +22,7 @@ import { DateIntervalModal } from '@/components/DateIntervalModal';
 import { DateIntervalNav } from '@/components/DateIntervalNav';
 import { StatementExportModal } from '@/components/StatementExportModal';
 import { ManageRecurringModal } from '@/components/ManageRecurringModal';
+import { BackupRestoreModal } from '@/components/BackupRestoreModal';
 import { useRouter } from 'expo-router';
 
 export default function AnalyticsScreen() {
@@ -43,6 +43,7 @@ export default function AnalyticsScreen() {
   const [intervalModalVisible, setIntervalModalVisible] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [manageBillsModalVisible, setManageBillsModalVisible] = useState(false);
+  const [backupModalVisible, setBackupModalVisible] = useState(false);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -89,14 +90,59 @@ export default function AnalyticsScreen() {
         </View>
 
         {transactions.length === 0 ? (
-          <Card padding="lg" bordered={false}>
-            <EmptyState
-              title="No Analytics"
-              description="Analytics require logged transactions to calculate your cash flow."
-              onAction={() => router.push('/(tabs)/quick-add')}
-              actionTitle="Log Transaction"
-            />
-          </Card>
+          <>
+            <Card padding="lg" bordered={false}>
+              <EmptyState
+                title="No Analytics"
+                description="Analytics require logged transactions to calculate your cash flow."
+                onAction={() => router.push('/(tabs)/quick-add')}
+                actionTitle="Log Transaction"
+              />
+            </Card>
+
+            {/* Backup & Restore Card in Empty State */}
+            <Card padding="md" style={styles.backupCard} bordered={false}>
+              <View style={styles.backupHeader}>
+                <View style={styles.backupLeft}>
+                  <View
+                    style={[
+                      styles.backupIconWrap,
+                      {
+                        backgroundColor: isDark
+                          ? 'rgba(59, 130, 246, 0.15)'
+                          : 'rgba(37, 99, 235, 0.1)',
+                      },
+                    ]}
+                  >
+                    <Feather name="database" size={18} color={isDark ? '#60A5FA' : '#2563EB'} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <ThemedText variant="headlineSm" numberOfLines={1}>
+                      Backup & Restore
+                    </ThemedText>
+                    <ThemedText variant="bodySm" color={colors.textSecondary}>
+                      Restore existing data or export JSON backup
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+
+              <View style={{ marginTop: spacing.xxs }}>
+                <Button
+                  title="Manage Backup & Restore"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => {
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch {}
+                    setBackupModalVisible(true);
+                  }}
+                  icon={<Feather name="shield" size={14} color={colors.text} />}
+                />
+              </View>
+            </Card>
+          </>
         ) : (
           <>
             {/* Spending Insight Card */}
@@ -373,8 +419,51 @@ export default function AnalyticsScreen() {
               </View>
             </View>
 
+            {/* Backup & Restore Card */}
+            <Card padding="md" style={styles.backupCard} bordered={false}>
+              <View style={styles.backupHeader}>
+                <View style={styles.backupLeft}>
+                  <View
+                    style={[
+                      styles.backupIconWrap,
+                      {
+                        backgroundColor: isDark
+                          ? 'rgba(59, 130, 246, 0.15)'
+                          : 'rgba(37, 99, 235, 0.1)',
+                      },
+                    ]}
+                  >
+                    <Feather name="database" size={18} color={isDark ? '#60A5FA' : '#2563EB'} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <ThemedText variant="headlineSm" numberOfLines={1}>
+                      Backup & Restore
+                    </ThemedText>
+                    <ThemedText variant="bodySm" color={colors.textSecondary}>
+                      Full JSON export & safe data restore
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+
+              <View style={{ marginTop: spacing.xxs }}>
+                <Button
+                  title="Manage Backup & Restore"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => {
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch {}
+                    setBackupModalVisible(true);
+                  }}
+                  icon={<Feather name="shield" size={14} color={colors.text} />}
+                />
+              </View>
+            </Card>
+
             {/* Export Statement CTA */}
-            <View style={{ marginTop: spacing.xs, marginBottom: spacing.lg }}>
+            <View style={{ marginTop: spacing.xxs, marginBottom: spacing.lg }}>
               <Button
                 title="Export Detailed Statement"
                 variant="outline"
@@ -414,6 +503,12 @@ export default function AnalyticsScreen() {
       <ManageRecurringModal
         visible={manageBillsModalVisible}
         onClose={() => setManageBillsModalVisible(false)}
+      />
+
+      {/* Backup & Restore Modal */}
+      <BackupRestoreModal
+        visible={backupModalVisible}
+        onClose={() => setBackupModalVisible(false)}
       />
     </View>
   );
@@ -592,6 +687,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  backupCard: {
+    gap: spacing.sm,
+  },
+  backupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backupLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  backupIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
