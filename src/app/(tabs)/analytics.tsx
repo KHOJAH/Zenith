@@ -20,6 +20,7 @@ import { WeeklyBarChart } from '@/components/WeeklyBarChart';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { DateIntervalModal } from '@/components/DateIntervalModal';
+import { DateIntervalNav } from '@/components/DateIntervalNav';
 import { StatementExportModal } from '@/components/StatementExportModal';
 import { useRouter } from 'expo-router';
 
@@ -31,7 +32,9 @@ export default function AnalyticsScreen() {
     analytics,
     currency,
     dateInterval,
+    salaryDay,
     setDateInterval,
+    setSalaryDay,
   } = useTransactions();
 
   const [intervalModalVisible, setIntervalModalVisible] = useState(false);
@@ -76,29 +79,9 @@ export default function AnalyticsScreen() {
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
       >
-        {/* Interval Banner */}
+        {/* Interval Navigation */}
         <View style={styles.topRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Select Date Interval"
-            onPress={() => {
-              try { Haptics.selectionAsync(); } catch {}
-              setIntervalModalVisible(true);
-            }}
-            style={({ pressed }) => [
-              styles.periodBadge,
-              {
-                backgroundColor: colors.surfaceContainerLow,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
-              },
-            ]}
-          >
-            <Feather name="calendar" size={14} color={colors.textSecondary} />
-            <ThemedText variant="labelMd" style={{ fontWeight: '600' }}>
-              {dateInterval.label}
-            </ThemedText>
-            <Feather name="chevron-down" size={12} color={colors.textSecondary} />
-          </Pressable>
+          <DateIntervalNav onOpenModal={() => setIntervalModalVisible(true)} />
         </View>
 
         {transactions.length === 0 ? (
@@ -336,6 +319,8 @@ export default function AnalyticsScreen() {
       <DateIntervalModal
         visible={intervalModalVisible}
         currentInterval={dateInterval}
+        salaryDay={salaryDay}
+        onSalaryDayChange={setSalaryDay}
         onSelectInterval={(inv) => setDateInterval(inv)}
         onClose={() => setIntervalModalVisible(false)}
       />
@@ -366,6 +351,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
     paddingTop: spacing.xs,
   },
   periodBadge: {
