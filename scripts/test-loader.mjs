@@ -6,6 +6,12 @@ export async function resolve(specifier, context, nextResolve) {
   let target = specifier;
   if (specifier === 'expo-sqlite') {
     target = pathToFileURL(path.resolve(process.cwd(), 'scripts', 'mocks', 'expo-sqlite.mjs')).href;
+  } else if (specifier === 'react-native') {
+    target = pathToFileURL(path.resolve(process.cwd(), 'scripts', 'mocks', 'react-native.mjs')).href;
+  } else if (specifier === 'expo-file-system') {
+    target = pathToFileURL(path.resolve(process.cwd(), 'scripts', 'mocks', 'expo-file-system.mjs')).href;
+  } else if (specifier === 'expo-sharing') {
+    target = pathToFileURL(path.resolve(process.cwd(), 'scripts', 'mocks', 'expo-sharing.mjs')).href;
   } else if (specifier.startsWith('@/')) {
     target = pathToFileURL(path.resolve(process.cwd(), 'src', specifier.slice(2))).href;
   }

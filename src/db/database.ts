@@ -1,5 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import type { Transaction, CategoryItem, RecurringBill } from './schema';
+import type { ZenithBackupPayload } from '../utils/backup';
+import { deduplicateMergeData } from '../utils/backup';
 
 export const DEFAULT_CATEGORIES: CategoryItem[] = [
   {
@@ -300,4 +302,153 @@ export async function deleteRecurringBill(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM recurring_bills WHERE id = ?', [id]);
 }
+
+export async function restoreDatabaseFromBackup(
+  payload: ZenithBackupPayload,
+  mode: 'merge' | 'overwrite'
+): Promise<void> {
+  const db = await getDatabase();
+
+  await db.withTransactionAsync(async () => {
+    if (mode === 'overwrite') {
+      // 1. Wipe existing tables
+      await db.runAsync('DELETE FROM transactions');
+      await db.runAsync('DELETE FROM categories');
+      await db.runAsync('DELETE FROM recurring_bills');
+
+      // 2. Insert categories from backup (or default if empty)
+      const categoriesToInsert =
+        payload.data.categories && payload.data.categories.length > 0
+          ? payload.data.categories
+          : DEFAULT_CATEGORIES;
+
+      for (const c of categoriesToInsert) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO categories (category, icon, subtitle) VALUES (?, ?, ?)',
+          [c.category, c.icon, c.subtitle || '']
+        );
+      }
+
+      // 3. Insert recurring bills
+      if (payload.data.recurring_bills) {
+        for (const b of payload.data.recurring_bills) {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO recurring_bills (id, name, amount, category, currency, payment_method, frequency, due_day, due_month, icon, is_active, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              b.id,
+              b.name,
+              b.amount,
+              b.category,
+              b.currency || 'USD',
+              b.payment_method || 'Card',
+              b.frequency || 'monthly',
+              b.due_day,
+              b.due_month ?? null,
+              b.icon || 'calendar',
+              b.is_active ? 1 : 0,
+              b.created_at || new Date().toISOString(),
+            ]
+          );
+        }
+      }
+
+      // 4. Insert transactions
+      if (payload.data.transactions) {
+        for (const tx of payload.data.transactions) {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO transactions (id, amount, type, category, merchant, note, date, payment_method, currency, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              tx.id,
+              tx.amount,
+              tx.type,
+              tx.category,
+              tx.merchant || tx.category || (tx.type === 'income' ? 'Income' : 'Expense'),
+              tx.note || '',
+              tx.date,
+              tx.payment_method || 'Card',
+              tx.currency || 'USD',
+              tx.created_at || new Date().toISOString(),
+            ]
+          );
+        }
+      }
+
+      // 5. Restore settings if present
+      if (payload.data.settings) {
+        await setSetting('zenith_currency', payload.data.settings.currency || 'USD');
+        await setSetting('zenith_salary_day', String(payload.data.settings.salary_day ?? 27));
+        await setSetting('zenith_balance_hidden', String(Boolean(payload.data.settings.is_balance_hidden)));
+      }
+    } else {
+      // Mode: 'merge'
+      const [existingTx, existingCats, existingBills] = await Promise.all([
+        getTransactions(),
+        getCategories(),
+        getRecurringBills(),
+      ]);
+
+      const { transactionsToAdd, recurringBillsToAdd, categoriesToAdd } = deduplicateMergeData({
+        existingTransactions: existingTx,
+        incomingTransactions: payload.data.transactions || [],
+        existingRecurringBills: existingBills,
+        incomingRecurringBills: payload.data.recurring_bills || [],
+        existingCategories: existingCats,
+        incomingCategories: payload.data.categories || [],
+      });
+
+      // 1. Insert new categories
+      for (const c of categoriesToAdd) {
+        await db.runAsync(
+          'INSERT OR IGNORE INTO categories (category, icon, subtitle) VALUES (?, ?, ?)',
+          [c.category, c.icon, c.subtitle || '']
+        );
+      }
+
+      // 2. Insert new recurring bills
+      for (const b of recurringBillsToAdd) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO recurring_bills (id, name, amount, category, currency, payment_method, frequency, due_day, due_month, icon, is_active, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            b.id,
+            b.name,
+            b.amount,
+            b.category,
+            b.currency || 'USD',
+            b.payment_method || 'Card',
+            b.frequency || 'monthly',
+            b.due_day,
+            b.due_month ?? null,
+            b.icon || 'calendar',
+            b.is_active ? 1 : 0,
+            b.created_at || new Date().toISOString(),
+          ]
+        );
+      }
+
+      // 3. Insert new transactions
+      for (const tx of transactionsToAdd) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO transactions (id, amount, type, category, merchant, note, date, payment_method, currency, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            tx.id,
+            tx.amount,
+            tx.type,
+            tx.category,
+            tx.merchant || tx.category || (tx.type === 'income' ? 'Income' : 'Expense'),
+            tx.note || '',
+            tx.date,
+            tx.payment_method || 'Card',
+            tx.currency || 'USD',
+            tx.created_at || new Date().toISOString(),
+          ]
+        );
+      }
+    }
+  });
+}
+
 
