@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { DateIntervalModal } from '@/components/DateIntervalModal';
 import { DateIntervalNav } from '@/components/DateIntervalNav';
 import { StatementExportModal } from '@/components/StatementExportModal';
+import { ManageRecurringModal } from '@/components/ManageRecurringModal';
 import { useRouter } from 'expo-router';
 
 export default function AnalyticsScreen() {
@@ -33,12 +34,15 @@ export default function AnalyticsScreen() {
     currency,
     dateInterval,
     salaryDay,
+    recurringSummary,
+    recurringBills,
     setDateInterval,
     setSalaryDay,
   } = useTransactions();
 
   const [intervalModalVisible, setIntervalModalVisible] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [manageBillsModalVisible, setManageBillsModalVisible] = useState(false);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -239,6 +243,77 @@ export default function AnalyticsScreen() {
               </View>
             </View>
 
+            {/* Fixed Commitments & Subscriptions Card */}
+            <Card padding="md" style={styles.fixedCard} bordered={false}>
+              <View style={styles.fixedHeader}>
+                <View style={styles.fixedLeft}>
+                  <View
+                    style={[
+                      styles.fixedIconWrap,
+                      { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(5, 150, 105, 0.1)' },
+                    ]}
+                  >
+                    <Feather name="calendar" size={18} color={colors.secondary} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <ThemedText variant="headlineSm" numberOfLines={1}>
+                      Fixed Commitments
+                    </ThemedText>
+                    <ThemedText variant="bodySm" color={colors.textSecondary}>
+                      {recurringBills.filter((b) => b.is_active).length} active subscriptions & bills
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <View style={{ alignItems: 'flex-end' }}>
+                  <ThemedText variant="headlineSm" style={{ fontWeight: '700' }}>
+                    {formatCurrency(recurringSummary.totalMonthlyCommitment, currency)}
+                  </ThemedText>
+                  <ThemedText variant="bodySm" color={colors.textTertiary}>
+                    per month
+                  </ThemedText>
+                </View>
+              </View>
+
+              {/* Cycle Pacing & Progress */}
+              <View style={styles.fixedPacingWrap}>
+                <View style={styles.fixedMetricsRow}>
+                  <ThemedText variant="bodySm" color={colors.textSecondary}>
+                    Cycle settled: <ThemedText variant="bodySm" color={colors.secondary} style={{ fontWeight: '700' }}>{formatCurrency(recurringSummary.cyclePaid, currency)}</ThemedText>
+                  </ThemedText>
+                  <ThemedText variant="bodySm" color={colors.textSecondary}>
+                    Remaining: <ThemedText variant="bodySm" color={colors.text} style={{ fontWeight: '700' }}>{formatCurrency(recurringSummary.cycleRemaining, currency)}</ThemedText>
+                  </ThemedText>
+                </View>
+
+                <View style={[styles.meterTrack, { backgroundColor: colors.surfaceContainer, marginTop: 6 }]}>
+                  <View
+                    style={[
+                      styles.meterFill,
+                      {
+                        width: `${recurringSummary.cycleTotalCommitted > 0 ? Math.min(100, Math.round((recurringSummary.cyclePaid / recurringSummary.cycleTotalCommitted) * 100)) : 0}%`,
+                        backgroundColor: colors.secondary,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+
+              {/* Manage Bills CTA */}
+              <View style={{ marginTop: spacing.xxs }}>
+                <Button
+                  title="Manage Recurring Bills"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => {
+                    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                    setManageBillsModalVisible(true);
+                  }}
+                  icon={<Feather name="sliders" size={14} color={colors.text} />}
+                />
+              </View>
+            </Card>
+
             {/* Category Spending Section */}
             <View style={styles.categoriesSection}>
               <View style={styles.catHeaderRow}>
@@ -334,9 +409,16 @@ export default function AnalyticsScreen() {
         currency={currency}
         onClose={() => setExportModalVisible(false)}
       />
+
+      {/* Manage Recurring Modal */}
+      <ManageRecurringModal
+        visible={manageBillsModalVisible}
+        onClose={() => setManageBillsModalVisible(false)}
+      />
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -481,4 +563,35 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     borderCurve: 'continuous',
   },
+  fixedCard: {
+    gap: spacing.sm,
+  },
+  fixedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fixedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  fixedIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fixedPacingWrap: {
+    gap: spacing.xxs,
+  },
+  fixedMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 });
+
