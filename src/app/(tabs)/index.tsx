@@ -21,6 +21,7 @@ import { Card } from '@/components/Card';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 import { DateIntervalModal } from '@/components/DateIntervalModal';
+import { DateIntervalNav } from '@/components/DateIntervalNav';
 import { TransactionDetailModal } from '@/components/TransactionDetailModal';
 
 export default function DashboardScreen() {
@@ -32,7 +33,9 @@ export default function DashboardScreen() {
     currency,
     isBalanceHidden,
     dateInterval,
+    salaryDay,
     setDateInterval,
+    setSalaryDay,
     toggleBalanceVisibility,
   } = useTransactions();
 
@@ -86,60 +89,9 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
       >
-        {/* Dynamic Interval Badge */}
+        {/* Dynamic Interval Navigation */}
         <View style={styles.topRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Select Date Interval"
-            onPress={() => {
-              try { Haptics.selectionAsync(); } catch {}
-              setIntervalModalVisible(true);
-            }}
-            style={({ pressed }) => [
-              styles.periodBadge,
-              {
-                backgroundColor: colors.surfaceContainerLow,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
-              },
-            ]}
-          >
-            <Feather name="calendar" size={14} color={colors.textSecondary} />
-            <ThemedText variant="labelMd" style={{ fontWeight: '600' }}>
-              {dateInterval.label}
-            </ThemedText>
-            <Feather name="chevron-down" size={12} color={colors.textSecondary} />
-          </Pressable>
-
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor:
-                  analytics.netSavings >= 0
-                    ? isDark
-                      ? 'rgba(16, 185, 129, 0.15)'
-                      : 'rgba(5, 150, 105, 0.12)'
-                    : colors.errorContainer,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.statusDot,
-                {
-                  backgroundColor:
-                    analytics.netSavings >= 0 ? colors.secondary : colors.error,
-                },
-              ]}
-            />
-            <ThemedText
-              variant="labelSm"
-              color={analytics.netSavings >= 0 ? colors.secondary : colors.error}
-              style={{ fontWeight: '700', letterSpacing: 0.6 }}
-            >
-              {analytics.netSavings >= 0 ? 'NET POSITIVE' : 'NET DEFICIT'}
-            </ThemedText>
-          </View>
+          <DateIntervalNav onOpenModal={() => setIntervalModalVisible(true)} />
         </View>
 
         {/* Hero Card: Net Balance */}
@@ -389,6 +341,8 @@ export default function DashboardScreen() {
       <DateIntervalModal
         visible={intervalModalVisible}
         currentInterval={dateInterval}
+        salaryDay={salaryDay}
+        onSalaryDayChange={setSalaryDay}
         onSelectInterval={(inv) => setDateInterval(inv)}
         onClose={() => setIntervalModalVisible(false)}
       />
@@ -416,30 +370,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing.xs,
-  },
-  periodBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm + 2,
-    borderRadius: radius.full,
-    borderCurve: 'continuous',
+    flexWrap: 'wrap',
     gap: spacing.xs,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.full,
-    borderCurve: 'continuous',
-    gap: 6,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    paddingTop: spacing.xs,
   },
   heroCard: {
     borderRadius: radius.xxl,
