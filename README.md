@@ -27,6 +27,8 @@ Zenith is a minimalist, local-first financial ledger designed for clarity and sp
 
 All records are stored directly on your device inside an embedded SQLite database. Your financial data never touches an external server.
 
+> **Engineering Deep Dive**: Explore the comprehensive [Architecture & Engineering Guide](./learn/README.md) to understand how each subsystem is built from first principles.
+
 ---
 
 ## Key Features
@@ -112,6 +114,9 @@ All records are stored directly on your device inside an embedded SQLite databas
 Zenith/
 ├── assets/
 │   └── images/                   # App icon, splash screen, and showcase assets
+├── learn/                        # Architecture & engineering guides
+│   ├── README.md                 # System overview & learning roadmap
+│   └── 01-07-*.md                # Deep-dive modules (SQLite, Payday engine, APK diet)
 ├── src/
 │   ├── app/                      # Expo Router file-based screens
 │   │   ├── _layout.tsx           # Global providers (Theme, SQLite, SafeArea)
