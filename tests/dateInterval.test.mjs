@@ -8,7 +8,12 @@ import {
   formatSalaryCycleLabel,
   formatDateRangeLabel,
 } from '../src/utils/dateInterval.ts';
-import { getSalaryCycleDates } from '../src/utils/salary.ts';
+import {
+  getSalaryCycleDates,
+  getTargetPayday,
+  getPreviousPayday,
+  getPaydayCountdownDetails,
+} from '../src/utils/salary.ts';
 
 describe('Date Interval Suite', () => {
   test('getCurrentInterval creates expected presets', () => {
@@ -242,5 +247,92 @@ describe('Date Interval Suite', () => {
     const nextCustom = stepDateInterval(custom, 'next');
     assert.ok(new Date(nextCustom.startDate).getTime() > new Date(custom.startDate).getTime());
     assert.equal(typeof canStepNext(custom), 'boolean');
+  });
+
+  describe('Payday Horizon & Countdown Calculation Suite', () => {
+    test('Mid-month date calculates correct upcoming payday and cycle boundaries', () => {
+      // Sep 15, 2026, salary day 27
+      const ref = new Date(2026, 8, 15, 12, 0, 0);
+      const details = getPaydayCountdownDetails(27, ref);
+
+      assert.equal(details.isPaydayToday, false);
+      assert.equal(details.targetPayday.getFullYear(), 2026);
+      assert.equal(details.targetPayday.getMonth(), 8); // Sep
+      assert.equal(details.targetPayday.getDate(), 27);
+      assert.equal(details.previousPayday.getMonth(), 7); // Aug
+      assert.equal(details.previousPayday.getDate(), 27);
+      assert.equal(details.days, 11);
+      assert.equal(details.totalCycleDays, 31);
+      assert.equal(details.elapsedDays, 19);
+      assert.ok(details.percentCompleted > 0 && details.percentCompleted < 100);
+      assert.match(details.paydayDateLabel, /Sunday, Sep 27 • Direct Deposit/);
+    });
+
+    test('Payday today does not freeze countdown at 00:00:00 for next month', () => {
+      // Sep 27, 2026 at noon, salary day 27 (today is payday!)
+      const ref = new Date(2026, 8, 27, 12, 0, 0);
+      const details = getPaydayCountdownDetails(27, ref);
+
+      assert.equal(details.isPaydayToday, true);
+      assert.equal(details.targetPayday.getMonth(), 9); // Next payday is Oct 27
+      assert.equal(details.targetPayday.getDate(), 27);
+      assert.equal(details.previousPayday.getMonth(), 8); // Previous cycle started today
+      assert.equal(details.previousPayday.getDate(), 27);
+      assert.ok(details.days > 25, 'Countdown should reflect ~30 days until next month payday');
+      assert.match(details.paydayDateLabel, /Tuesday, Oct 27 • Direct Deposit/);
+    });
+
+    test('Month-end payday 31 clamps to 30th in 30-day month (Sep) instead of Oct 1', () => {
+      // Sep 15, 2026, salary day 31
+      const ref = new Date(2026, 8, 15, 12, 0, 0);
+      const target = getTargetPayday(31, ref);
+
+      assert.equal(target.getFullYear(), 2026);
+      assert.equal(target.getMonth(), 8); // Sep
+      assert.equal(target.getDate(), 30, 'Sep has 30 days, payday clamps to 30th');
+
+      const details = getPaydayCountdownDetails(31, ref);
+      assert.equal(details.days, 14);
+      assert.match(details.paydayDateLabel, /Wednesday, Sep 30 • Direct Deposit/);
+    });
+
+    test('Month-end payday 31 on Sep 30 recognizes payday today', () => {
+      const ref = new Date(2026, 8, 30, 12, 0, 0);
+      const details = getPaydayCountdownDetails(31, ref);
+
+      assert.equal(details.isPaydayToday, true);
+      assert.equal(details.targetPayday.getMonth(), 9); // Oct
+      assert.equal(details.targetPayday.getDate(), 31);
+      assert.match(details.paydayDateLabel, /Saturday, Oct 31 • Direct Deposit/);
+    });
+
+    test('Month-end payday 31 in February non-leap clamps to Feb 28', () => {
+      const ref = new Date(2026, 1, 10, 12, 0, 0);
+      const target = getTargetPayday(31, ref);
+
+      assert.equal(target.getFullYear(), 2026);
+      assert.equal(target.getMonth(), 1); // Feb
+      assert.equal(target.getDate(), 28, 'Feb 2026 has 28 days');
+    });
+
+    test('Month-end payday 31 in February leap year clamps to Feb 29', () => {
+      const ref = new Date(2024, 1, 10, 12, 0, 0);
+      const target = getTargetPayday(31, ref);
+
+      assert.equal(target.getFullYear(), 2024);
+      assert.equal(target.getMonth(), 1); // Feb
+      assert.equal(target.getDate(), 29, 'Feb 2024 leap year has 29 days');
+    });
+
+    test('Year boundary salary cycle (Dec 28 to Jan 27)', () => {
+      const ref = new Date(2025, 11, 28, 12, 0, 0);
+      const details = getPaydayCountdownDetails(27, ref);
+
+      assert.equal(details.isPaydayToday, false);
+      assert.equal(details.targetPayday.getFullYear(), 2026);
+      assert.equal(details.targetPayday.getMonth(), 0); // Jan
+      assert.equal(details.targetPayday.getDate(), 27);
+      assert.match(details.paydayDateLabel, /Tuesday, Jan 27 • Direct Deposit/);
+    });
   });
 });

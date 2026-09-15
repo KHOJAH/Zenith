@@ -62,6 +62,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
   // Reset staged state when modal closes
   React.useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStagedPayload(null);
       setValidationError(null);
       setSourceLabel(null);

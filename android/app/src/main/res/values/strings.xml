@@ -1,0 +1,8 @@
+<resources>
+  <string name="app_name">Zenith</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="widget_cash_flow_name">Zenith: Cash Flow Velocity</string>
+  <string name="widget_cash_flow_desc">Monitor live income, burn ratio, and spending velocity</string>
+  <string name="widget_payday_name">Zenith: Payday Horizon</string>
+  <string name="widget_payday_desc">Live countdown to your next payday and salary cycle progression</string>
+</resources>

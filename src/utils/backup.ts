@@ -513,7 +513,7 @@ export async function readBackupFile(uri: string, webFile?: any): Promise<string
   try {
     const file = new File(uri);
     return await file.text();
-  } catch (fsErr) {
+  } catch {
     // Fallback to fetch in case of unusual URI schemes
     const res = await fetch(uri);
     return await res.text();

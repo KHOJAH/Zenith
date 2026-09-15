@@ -44,7 +44,15 @@ example
 
 # generated native folders
 /ios
-/android
+
+# Android build outputs & local config
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/app/.cxx/
+android/local.properties
+android/.idea/
 
 # documentation & specs
 docs/

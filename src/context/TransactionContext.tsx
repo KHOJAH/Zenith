@@ -16,6 +16,7 @@ import {
   type RecurringBillStatus,
   type RecurringCommitmentsSummary,
 } from '@/utils/recurring';
+import { syncHomeWidgets } from '@/utils/homeWidgets';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -117,6 +118,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     const bounded = Math.max(1, Math.min(31, Math.round(day)));
     setSalaryDayState(bounded);
     setItem(STORAGE_KEYS.SALARY_DAY, String(bounded));
+    setDateIntervalState((current) => {
+      if (current.id === 'salary_cycle') {
+        const next = getCurrentInterval('salary_cycle', bounded);
+        setJSON(STORAGE_KEYS.DATE_INTERVAL, next);
+        return next;
+      }
+      return current;
+    });
   }, []);
 
   const stepDateInterval = useCallback((direction: 'prev' | 'next') => {
@@ -381,6 +390,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     dateInterval.startDate,
     dateInterval.endDate
   );
+
+  useEffect(() => {
+    syncHomeWidgets({
+      analytics,
+      currency,
+      salaryDay,
+      transactions,
+    });
+  }, [analytics, currency, salaryDay, transactions]);
 
   const { statuses: recurringStatuses, summary: recurringSummary } = useMemo(() => {
     return calculateRecurringSummaries(

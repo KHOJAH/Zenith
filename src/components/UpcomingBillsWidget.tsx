@@ -18,7 +18,6 @@ import { ThemedText } from './ThemedText';
 import { Card } from './Card';
 import { ManageRecurringModal } from './ManageRecurringModal';
 import type { RecurringBill } from '@/db/schema';
-import type { RecurringBillStatus } from '@/utils/recurring';
 
 export function UpcomingBillsWidget() {
   const { colors, isDark } = useTheme();

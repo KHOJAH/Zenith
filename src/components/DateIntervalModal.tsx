@@ -53,6 +53,7 @@ export function DateIntervalModal({
   // Sync selectedType when modal opens
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedType(currentInterval.id === "custom" ? "salary_cycle" : currentInterval.id);
     }
   }, [visible, currentInterval.id]);
@@ -60,6 +61,7 @@ export function DateIntervalModal({
   // Load saved salary day or sync from prop
   useEffect(() => {
     if (propSalaryDay && propSalaryDay >= 1 && propSalaryDay <= 31) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSalaryDay(propSalaryDay);
     } else {
       getItem(STORAGE_KEYS.SALARY_DAY, "27").then((val) => {
